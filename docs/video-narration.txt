@@ -1,0 +1,17 @@
+[0:00–0:20 Hook]
+Three friends, one trip. Aziz loves Spirited Away and Patagonia. Malika loves Daft Punk and Wes Anderson. Rustam loves Anthony Bourdain and Chef's Table. Classic planners pick a city for the average — and someone loses. This is TasteMatch Trips: a fairness-aware group-travel agent on Qloo Taste AI.
+
+[0:20–0:45 Problem]
+Taste is cultural, not just a survey score. We ask only nicknames and cultural favourites — no personal data. The agent resolves each favourite in Qloo, scores destinations for the group and for every traveler, then ranks by a fairness score: forty percent mean affinity, forty percent minimum, twenty percent group affinity. The least-matched traveler is named out loud.
+
+[0:45–1:25 Live plan]
+We load the sample group and hit Plan. Against the live hackathon API, all six favourites resolve. No guesses, nothing unmatched. Top destination: Sayulita, Nayarit, group fit seventy-eight point nine, least-matched traveler Aziz. Then Santa Fe and Ojai. Sayulita wins not because it is hottest for any one person, but because nobody is left behind.
+
+[1:25–2:00 Itinerary]
+The itinerary is round-robin so the fair share is two slots each. Day one morning: Hacienda Camino al Mar for Aziz, affinity point nine two, driven by Spirited Away and Patagonia. Afternoon: Playa Sayulita for Malika. Evening: Mita Mary for Rustam's food tastes. Every pick cites the Qloo affinity and the favourites it came from.
+
+[2:00–2:25 Trace]
+The agent trace shows every Qloo call: six searches, four destination insight calls, three place calls. Responses stay in memory only. Results are aggregate taste affinities — not predictions about any individual. Nicknames only.
+
+[2:25–2:45 Close]
+TasteMatch Trips: agents, but with taste — and fairness. Built with Qloo Taste AI, FastAPI, and n8n. Open source, MIT licensed. Link in the description.
