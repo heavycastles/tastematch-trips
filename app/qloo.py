@@ -7,9 +7,32 @@ Responses are cached in-process only (never written to the repo), per Qloo's dat
 from __future__ import annotations
 
 import os
+import time
 from functools import lru_cache
+from pathlib import Path
 
 import httpx
+
+_ENV_LOADED = False
+
+
+def load_dotenv(path: Path | None = None) -> None:
+    """Minimal .env loader (no python-dotenv dep). Does not override existing env vars."""
+    global _ENV_LOADED
+    if _ENV_LOADED:
+        return
+    p = path or Path(__file__).resolve().parent.parent / ".env"
+    if p.is_file():
+        for line in p.read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            k, v = k.strip(), v.strip().strip('"').strip("'")
+            if k and k not in os.environ:
+                os.environ[k] = v
+    _ENV_LOADED = True
+
 
 BASE = os.getenv("QLOO_BASE_URL", "https://hackathon.api.qloo.com").rstrip("/")
 
@@ -19,7 +42,7 @@ class QlooError(RuntimeError):
 
 
 def live() -> bool:
-    return bool(os.getenv("QLOO_API_KEY"))
+    return bool(os.getenv("QLOO_API_KEY")) and not os.getenv("QLOO_FORCE_MOCK")
 
 
 def _get(path: str, params: tuple) -> dict:
@@ -28,11 +51,95 @@ def _get(path: str, params: tuple) -> dict:
 
 @lru_cache(maxsize=512)
 def _cached_get(path: str, params: tuple, key: str) -> dict:
-    r = httpx.get(f"{BASE}{path}", params=list(params), headers={"X-Api-Key": key},
-                  timeout=float(os.getenv("QLOO_TIMEOUT", "20")))
-    if r.status_code >= 400:
-        raise QlooError(f"Qloo {path} {r.status_code}: {r.text[:200]}")
-    return r.json()
+    timeout = float(os.getenv("QLOO_TIMEOUT", "20"))
+    last_text, last_code = "", 0
+    for attempt in range(6):
+        r = httpx.get(
+            f"{BASE}{path}",
+            params=list(params),
+            headers={"X-Api-Key": key},
+            timeout=timeout,
+        )
+        if r.status_code == 429:
+            last_text, last_code = r.text[:200], 429
+            time.sleep(min(16.0, 0.8 * (2**attempt)))
+            continue
+        if r.status_code >= 400:
+            raise QlooError(f"Qloo {path} {r.status_code}: {r.text[:200]}")
+        return r.json()
+    raise QlooError(f"Qloo {path} {last_code}: {last_text or 'Rate limit exceeded'}")
+
+
+def _affinity(entity: dict) -> float:
+    q = entity.get("query") or {}
+    for key in ("affinity", "rank", "score"):
+        if q.get(key) is not None:
+            try:
+                return float(q[key])
+            except (TypeError, ValueError):
+                pass
+    for key in ("affinity", "score", "popularity"):
+        if entity.get(key) is not None:
+            try:
+                return float(entity[key])
+            except (TypeError, ValueError):
+                pass
+    return 0.0
+
+
+def _tag_names(entity: dict) -> list[str]:
+    out = []
+    for t in entity.get("tags") or []:
+        if isinstance(t, dict) and t.get("name"):
+            out.append(t["name"])
+        elif isinstance(t, str):
+            out.append(t)
+    return out[:6]
+
+
+def _destination_label(entity: dict) -> str:
+    """Disambiguate destinations (e.g. Portland, Maine) using geocode when present."""
+    name = (entity.get("name") or "").strip() or "Unknown"
+    geo = (entity.get("properties") or {}).get("geocode") or {}
+    region = (geo.get("admin1_region") or "").strip()
+    country = (geo.get("country_code") or "").strip()
+    if region and region.lower() not in name.lower():
+        return f"{name}, {region}"
+    if country and country.upper() not in name.upper() and not region:
+        return f"{name}, {country}"
+    return name
+
+
+def _location_query(entity: dict) -> str:
+    """Best string for filter.location.query.
+
+    Prefer the destination's own name plus admin1 region (e.g. "Santa Fe, New Mexico",
+    "Sayulita, Nayarit"). Using geocode.name alone is unreliable — it can be a nearby
+    village ("Lo de Marcos") that Qloo resolves to the wrong metro.
+    """
+    name = (entity.get("name") or "").strip()
+    geo = (entity.get("properties") or {}).get("geocode") or {}
+    region = (geo.get("admin1_region") or "").strip()
+    if name and region and region.lower() not in name.lower():
+        return f"{name}, {region}"
+    if name:
+        return name
+    return (geo.get("name") or geo.get("city") or geo.get("metro") or "").strip()
+
+
+def _parse_entity(entity: dict, *, as_destination: bool = False) -> dict:
+    props = entity.get("properties") or {}
+    name = _destination_label(entity) if as_destination else (entity.get("name") or "")
+    return {
+        "id": entity.get("entity_id") or entity.get("id"),
+        "name": name,
+        "affinity": _affinity(entity),
+        "tags": _tag_names(entity),
+        "address": props.get("address"),
+        "description": (props.get("description") or props.get("short_description") or "")[:240],
+        "location_query": _location_query(entity) if as_destination else None,
+        "popularity": float(entity.get("popularity") or 0) if entity.get("popularity") is not None else None,
+    }
 
 
 def search(query: str, etype: str | None = None, take: int = 1) -> list[dict]:
@@ -42,32 +149,51 @@ def search(query: str, etype: str | None = None, take: int = 1) -> list[dict]:
     if etype:
         params.append(("types", etype))
     data = _get("/search", tuple(params))
-    return [{"id": e.get("entity_id") or e.get("id"), "name": e.get("name"),
-             "type": etype or (e.get("types") or [""])[0]} for e in data.get("results", [])][:take]
+    results = data.get("results") or []
+    if isinstance(results, dict):
+        results = results.get("entities") or []
+    out = []
+    for e in results[:take]:
+        types = e.get("types") or []
+        out.append({
+            "id": e.get("entity_id") or e.get("id"),
+            "name": e.get("name"),
+            "type": etype or (types[0] if types else ""),
+        })
+    return out
 
 
-def insights(filter_type: str, entity_ids: list[str], take: int = 10, location: str | None = None,
-             tags: list[str] | None = None) -> list[dict]:
+def insights(
+    filter_type: str,
+    entity_ids: list[str],
+    take: int = 10,
+    location: str | None = None,
+    tags: list[str] | None = None,
+    popularity_min: float | None = None,
+    filter_entities: list[str] | None = None,
+) -> list[dict]:
     if not live():
-        return MOCK.insights(filter_type, entity_ids, take, location)
-    params = [("filter.type", filter_type), ("take", str(take))]
+        return MOCK.insights(filter_type, entity_ids, take, location, filter_entities=filter_entities)
+    params: list[tuple[str, str]] = [("filter.type", filter_type), ("take", str(take))]
     if entity_ids:
         params.append(("signal.interests.entities", ",".join(entity_ids)))
     if location:
         params.append(("filter.location.query", location))
     if tags:
         params.append(("filter.tags", ",".join(tags)))
+    if popularity_min is not None:
+        params.append(("filter.popularity.min", str(popularity_min)))
+    if filter_entities:
+        # Score affinity of these specific entities toward the signal (docs: filter.entities /
+        # filter.results.entities). Hackathon accepts filter.entities.
+        params.append(("filter.entities", ",".join(filter_entities)))
+        params = [(k, v) for k, v in params if k != "take"]  # take ignored when filtering to IDs
+        params.append(("take", str(max(take, len(filter_entities)))))
     data = _get("/v2/insights", tuple(params))
-    ents = (data.get("results") or {}).get("entities", [])
-    out = []
-    for e in ents:
-        q = e.get("query") or {}
-        props = e.get("properties") or {}
-        out.append({"id": e.get("entity_id"), "name": e.get("name"),
-                    "affinity": float(q.get("affinity", e.get("popularity", 0)) or 0),
-                    "tags": [t.get("name") for t in (e.get("tags") or [])[:6] if isinstance(t, dict)],
-                    "address": props.get("address"), "description": (props.get("description") or "")[:240]})
-    return out
+    results = data.get("results") or {}
+    ents = results.get("entities", []) if isinstance(results, dict) else results
+    as_dest = filter_type == "urn:entity:destination"
+    return [_parse_entity(e, as_destination=as_dest) for e in ents]
 
 
 # ------------------------------------------------------------------------ mock
@@ -113,7 +239,7 @@ class _Mock:
             out += self.LIKES.get(i.removeprefix("mock:").replace("_", " "), [])
         return out
 
-    def insights(self, ftype, ids, take, location):
+    def insights(self, ftype, ids, take, location, filter_entities=None):
         tags = self._tags(ids)
         if ftype == "urn:entity:destination":
             pool = self.DESTINATIONS.items()
@@ -123,10 +249,21 @@ class _Mock:
             return []
         scored = []
         for name, dtags in pool:
+            eid = "mock:" + name.lower().replace(" ", "_")
+            if filter_entities and eid not in filter_entities and name not in filter_entities:
+                continue
             hits = sum(tags.count(t) for t in dtags)
             aff = round(min(0.99, 0.2 + 0.18 * hits), 3) if tags else 0.3
-            scored.append({"id": "mock:" + name.lower().replace(" ", "_"), "name": name, "affinity": aff,
-                           "tags": dtags[:6], "address": None, "description": ""})
+            scored.append({
+                "id": eid,
+                "name": name,
+                "affinity": aff,
+                "tags": dtags[:6],
+                "address": None,
+                "description": "",
+                "location_query": name if ftype == "urn:entity:destination" else None,
+                "popularity": None,
+            })
         scored.sort(key=lambda e: (-e["affinity"], e["name"]))
         return scored[:take]
 

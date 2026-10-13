@@ -65,25 +65,51 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
         return {"error": "none_resolved", "unresolved": unresolved,
                 "ask": "I couldn't match any of those tastes in Qloo. Try a well-known movie, artist or brand."}
 
+    # Prefer well-known destinations on the live API (hackathon graph skews to tiny towns otherwise).
+    dest_kw = {"popularity_min": 0.55} if qloo.live() else {}
+    group = qloo.insights("urn:entity:destination", all_ids, 15, **dest_kw)
+    tr.add("destination_affinity", endpoint="/v2/insights", filter_type="destination", traveler="group",
+           signals=len(all_ids), results=len(group))
+    loc_by_name: dict[str, str] = {}
+    for e in group:
+        if e.get("location_query"):
+            loc_by_name[e["name"]] = e["location_query"]
+    candidate_ids = [e["id"] for e in group if e.get("id")]
+
+    # Score the SAME candidate set per traveler via filter.entities (true affinities, not top-N overlap).
     per: dict[str, dict[str, float]] = {}
     for t in travelers:
         ids = [e["id"] for e in t["entities"]]
-        res = qloo.insights("urn:entity:destination", ids, 15) if ids else []
+        if not ids:
+            per[t["label"]] = {}
+            continue
+        if candidate_ids and qloo.live():
+            # Candidates already popularity-filtered; score them raw for each traveler.
+            res = qloo.insights(
+                "urn:entity:destination", ids, max(15, len(candidate_ids)),
+                filter_entities=candidate_ids,
+            )
+        else:
+            res = qloo.insights("urn:entity:destination", ids, 15, **dest_kw)
         tr.add("destination_affinity", endpoint="/v2/insights", filter_type="destination", traveler=t["label"],
-               signals=len(ids), results=len(res))
+               signals=len(ids), results=len(res), filtered=bool(candidate_ids and qloo.live()))
         per[t["label"]] = {e["name"]: e["affinity"] for e in res}
-    group = qloo.insights("urn:entity:destination", all_ids, 15)
-    tr.add("destination_affinity", endpoint="/v2/insights", filter_type="destination", traveler="group",
-           signals=len(all_ids), results=len(group))
+        for e in res:
+            if e.get("location_query"):
+                loc_by_name[e["name"]] = e["location_query"]
     ranking = fairness(per, group)
     city = destination or (ranking[0]["name"] if ranking else None)
+    # Places need a location query string; prefer geocode city over neighborhood labels.
+    place_location = destination or (loc_by_name.get(city) if city else None) or city
 
     pools: dict[str, list[dict]] = {}
     for t in travelers:
         ids = [e["id"] for e in t["entities"]]
-        pools[t["label"]] = qloo.insights("urn:entity:place", ids, 8, location=city) if ids and city else []
-        tr.add("local_places", endpoint="/v2/insights", filter_type="place", traveler=t["label"], location=city,
-               results=len(pools[t["label"]]))
+        pools[t["label"]] = (
+            qloo.insights("urn:entity:place", ids, 8, location=place_location) if ids and place_location else []
+        )
+        tr.add("local_places", endpoint="/v2/insights", filter_type="place", traveler=t["label"],
+               location=place_location, results=len(pools[t["label"]]))
 
     itinerary, used = [], set()
     labels = [t["label"] for t in travelers]
