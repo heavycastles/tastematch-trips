@@ -1,0 +1,19 @@
+{
+  "name": "Telegram group: /trip -> TasteMatch Trips -> post itinerary",
+  "nodes": [
+    {"parameters": {"httpMethod": "POST", "path": "trip", "responseMode": "lastNode"}, "name": "Webhook (bot collects tastes)",
+     "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 0]},
+    {"parameters": {"method": "POST", "url": "={{$env.TASTEMATCH_URL}}/api/plan", "sendBody": true, "specifyBody": "json",
+      "jsonBody": "={{ JSON.stringify($json.body) }}"},
+     "name": "TasteMatch plan", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [240, 0]},
+    {"parameters": {"chatId": "={{$('Webhook (bot collects tastes)').item.json.body.chat_id}}",
+      "text": "=✈️ {{$json.destination}}\n{{$json.narrative}}\n\n{{$json.itinerary.map(x => 'Day ' + x.day + ' ' + x.slot + ': ' + x.place + ' (for ' + x.for + ')').join('\\n')}}"},
+     "name": "Post to group", "type": "n8n-nodes-base.telegram", "typeVersion": 1.2, "position": [480, 0],
+     "credentials": {"telegramApi": {"id": "", "name": "Trip bot"}}}
+  ],
+  "connections": {
+    "Webhook (bot collects tastes)": {"main": [[{"node": "TasteMatch plan", "type": "main", "index": 0}]]},
+    "TasteMatch plan": {"main": [[{"node": "Post to group", "type": "main", "index": 0}]]}
+  },
+  "settings": {}
+}

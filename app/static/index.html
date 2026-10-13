@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TasteMatch Trips — group travel that's fair to everyone's taste</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#fbf7f2;color:#222}header{padding:18px 28px;background:#1d1a3a;color:#fff}
+h1{margin:0;font-size:22px}main{max-width:1100px;margin:auto;padding:20px;display:grid;grid-template-columns:380px 1fr;gap:20px}
+.card{background:#fff;border-radius:10px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px #0002}
+input,select{padding:6px;border:1px solid #ccc;border-radius:5px;margin:2px 0}button{background:#ff5a5f;color:#fff;border:0;border-radius:6px;padding:9px 14px;font-weight:600;cursor:pointer}
+.ghost{background:#eee;color:#222}.bar{height:8px;background:#ff5a5f;border-radius:4px}.chip{display:inline-block;background:#f1ecff;border-radius:10px;padding:1px 8px;margin:2px;font-size:12px}
+small{color:#666}table{width:100%;border-collapse:collapse;font-size:13px}td{border-top:1px solid #eee;padding:5px}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+</style></head><body>
+<header><h1>TasteMatch Trips</h1><small style="color:#ccd">Each friend names a few movies, artists or brands. A Qloo-powered agent finds the destination that fits the <b>whole</b> group and an itinerary where nobody is left out.</small> <small id="be" style="color:#ccd"></small></header>
+<main><section><div id="tv"></div>
+<div class="card"><button class="ghost" id="add">+ traveler</button> <button class="ghost" id="smp">Load sample</button><br><br>
+Days <input id="days" type="number" min="1" max="5" value="2" style="width:50px"> Destination (optional) <input id="dest" placeholder="auto" style="width:110px"><br><br>
+<button id="go">Plan our trip</button> <span id="st"></span></div><small>Use nicknames only. Qloo results are aggregate taste affinities, not personal predictions.</small></section>
+<section id="out"></section></main>
+<script>
+const $=id=>document.getElementById(id),T=['movie','artist','brand','book','tv_show','video_game','podcast','person'];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+fetch('/healthz').then(r=>r.json()).then(h=>$('be').textContent='· Qloo: '+h.qloo);
+function trav(t={label:'',likes:[{name:'',type:'movie'},{name:'',type:'artist'}]}){const d=document.createElement('div');d.className='card trav';
+ d.innerHTML=`<input class="lbl" placeholder="Nickname" value="${esc(t.label)}">`+t.likes.concat([{name:'',type:'brand'}]).slice(0,3).map(l=>`<div><input class="ln" placeholder="e.g. Spirited Away" value="${esc(l.name)}"><select class="lt">${T.map(x=>`<option ${x==l.type?'selected':''}>${x}</option>`).join('')}</select></div>`).join('');$('tv').appendChild(d)}
+trav();trav();$('add').onclick=()=>trav();
+$('smp').onclick=async()=>{const s=await (await fetch('/api/sample')).json();$('tv').innerHTML='';s.travelers.forEach(trav);$('days').value=s.days};
+$('go').onclick=async()=>{const travelers=[...document.querySelectorAll('.trav')].map(d=>({label:d.querySelector('.lbl').value.trim(),
+ likes:[...d.querySelectorAll('.ln')].map((x,i)=>({name:x.value.trim(),type:d.querySelectorAll('.lt')[i].value})).filter(l=>l.name)})).filter(t=>t.label&&t.likes.length);
+ $('st').textContent='Asking Qloo…';const r=await fetch('/api/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({travelers,days:+$('days').value,destination:$('dest').value||null})});
+ const d=await r.json();$('st').textContent='';if(!r.ok||d.error){$('out').innerHTML='<div class="card">'+esc(d.ask||JSON.stringify(d.detail||d))+'</div>';return}
+ let h=`<div class="card"><h2 style="margin:0">${esc(d.destination)}</h2><p>${esc(d.narrative)}</p>${d.unresolved.length?'<small>Not found in Qloo: '+esc(d.unresolved.join('; '))+'</small>':''}</div>`;
+ h+='<div class="card"><b>Destinations ranked by group fit</b><table>'+d.ranking.map(x=>`<tr><td>${esc(x.name)}</td><td style="width:40%"><div class="bar" style="width:${x.group_fit}%"></div></td><td>${x.group_fit}</td><td><small>${Object.entries(x.per_traveler).map(([k,v])=>esc(k)+' '+v.toFixed(2)).join(' · ')}</small></td></tr>`).join('')+'</table></div>';
+ h+='<div class="card"><b>Itinerary</b> <small>fair share: '+Object.entries(d.fair_share).map(([k,v])=>esc(k)+' ×'+v).join(', ')+'</small><table>'+d.itinerary.map(x=>`<tr><td>Day ${x.day} ${x.slot}</td><td><b>${esc(x.place)}</b><br><small>${esc(x.why)}</small><br>${x.tags.map(t=>'<span class="chip">'+esc(t)+'</span>').join('')}</td><td>for ${esc(x.for)}</td></tr>`).join('')+'</table></div>';
+ h+='<div class="card"><b>Agent trace (Qloo calls)</b><table>'+d.trace.map(s=>`<tr><td>${s.tool}</td><td>${s.endpoint}</td><td><small>${esc(JSON.stringify(Object.fromEntries(Object.entries(s).filter(([k])=>!['tool','endpoint'].includes(k)))))}</small></td></tr>`).join('')+'</table><small>source: '+d.source+'</small></div>';
+ $('out').innerHTML=h};
+</script></body></html>

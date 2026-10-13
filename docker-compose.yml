@@ -1,0 +1,21 @@
+# TasteMatch Trips + n8n. Put QLOO_API_KEY in .env (hackathon key); without it the app runs on the mock.
+services:
+  app:
+    build: .
+    ports: ["8080:8080"]
+    env_file: [{path: .env, required: false}]
+    environment:
+      QLOO_BASE_URL: ${QLOO_BASE_URL:-https://hackathon.api.qloo.com}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8080/healthz')"]
+      interval: 10s
+  n8n:
+    image: n8nio/n8n:latest
+    ports: ["5678:5678"]
+    environment:
+      TASTEMATCH_URL: http://app:8080
+      N8N_SECURE_COOKIE: "false"
+    volumes: ["n8n_data:/home/node/.n8n", "./n8n:/workflows:ro"]
+    depends_on: [app]
+volumes:
+  n8n_data:
