@@ -93,9 +93,22 @@ POST /api/plan
 - Slides PDF: [`docs/slides.pdf`](docs/slides.pdf) · cover: [`docs/cover.png`](docs/cover.png)
 - Draft demo video: [`docs/demo-draft.mp4`](docs/demo-draft.mp4) (pending user review)
 
-## Deploy (public demo)
+## Deploy demo (Render)
 
-Dockerfile listens on `$PORT`; deploy to Render / Fly.io / Railway / Cloud Run with `QLOO_API_KEY` as a secret.
+One-click free-tier demo. Config: `render.yaml` (Docker, Oregon, health `/healthz`).
+`QLOO_API_KEY` is prompted by Render (`sync: false`) — never put the key in git.
+`QLOO_BASE_URL` defaults to `https://hackathon.api.qloo.com`. Without a key the app serves the offline mock graph.
+
+1. Push this repo public (user approval required), e.g. `heavycastles/tastematch-qloo`.
+2. Open [Render Blueprint](https://dashboard.render.com/select-repo?type=blueprint), connect the repo, Apply.
+3. Paste the hackathon API key when Render asks for `QLOO_API_KEY`.
+4. Demo URL → paste into `SUBMISSION.md` Links (currently TODO pending Render).
+
+```bash
+docker build -t tastematch-qloo .
+docker run --rm -p 8080:8080 -e QLOO_BASE_URL=https://hackathon.api.qloo.com tastematch-qloo
+# curl http://localhost:8080/healthz   # qloo: mock without key
+```
 
 ## License
 

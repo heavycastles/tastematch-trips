@@ -88,7 +88,7 @@ Python, FastAPI, Qloo Taste AI (`/search`, `/v2/insights`), httpx, n8n, Docker, 
 
 ## Links (local pack ready; publish TBD)
 
-- Functional demo URL: TODO (deploy; see README)
+- Functional demo URL: TODO pending Render Blueprint (`render.yaml` free tier; set `QLOO_API_KEY` in dashboard — see README Deploy demo)
 - Public repo with MIT license: TODO (do not push until user approves)
 - Video: draft at `docs/demo-draft.mp4` (script `docs/video-script.md`, narration `docs/video-narration.txt`)
 - Slides PDF: `docs/slides.pdf` · Cover: `docs/cover.png`

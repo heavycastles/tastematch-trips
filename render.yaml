@@ -1,0 +1,19 @@
+# Render Blueprint — free-tier live demo for Qloo TasteMatch Trips.
+# Deploy: https://dashboard.render.com/select-repo?type=blueprint
+# Set QLOO_API_KEY in the Render dashboard when prompted (never commit the key).
+services:
+  - type: web
+    name: tastematch-qloo
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /healthz
+    envVars:
+      - key: QLOO_API_KEY
+        sync: false
+      - key: QLOO_BASE_URL
+        value: https://hackathon.api.qloo.com
+      # Render injects PORT; serve.py reads it (default 8080).
+      # Without QLOO_API_KEY the app serves the offline mock graph.
