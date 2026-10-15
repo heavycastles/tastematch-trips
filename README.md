@@ -93,6 +93,14 @@ POST /api/plan
 - Slides PDF: [`docs/slides.pdf`](docs/slides.pdf) · cover: [`docs/cover.png`](docs/cover.png)
 - Draft demo video: [`docs/demo-draft.mp4`](docs/demo-draft.mp4) (pending user review)
 
+
+## Preflight / publish (local)
+
+```bash
+./scripts/preflight_submit.sh
+# VISIBILITY=private ./scripts/publish_github.sh   # gh as heavycastles; wait for user OK
+```
+
 ## Deploy demo (Render)
 
 One-click free-tier demo. Config: `render.yaml` (Docker, Oregon, health `/healthz`).
