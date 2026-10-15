@@ -1,6 +1,6 @@
 # TasteMatch Trips — a group-travel agent that's fair to everyone's taste
 
-**Qloo Agentic Hackathon** · MIT · Built by heavycastles
+**Qloo Agentic Hackathon** · [MIT License](LICENSE) · Built by heavycastles
 
 Group trips fail on taste: one friend wants anime museums, another techno clubs, the third street food.
 Trip planners optimise for "the group average" and someone always loses. **TasteMatch Trips** asks each
@@ -112,4 +112,4 @@ docker run --rm -p 8080:8080 -e QLOO_BASE_URL=https://hackathon.api.qloo.com tas
 
 ## License
 
-MIT — see `LICENSE`.
+MIT — see [`LICENSE`](LICENSE) (Copyright (c) 2026 heavycastles). GitHub detects it and shows "MIT license" in the repo About sidebar once the repo is public.
