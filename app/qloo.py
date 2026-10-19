@@ -127,9 +127,29 @@ def _location_query(entity: dict) -> str:
     return (geo.get("name") or geo.get("city") or geo.get("metro") or "").strip()
 
 
+def _image_url(entity: dict) -> str | None:
+    """First https image URL Qloo returns (properties.image.url or properties.images[0].url)."""
+    props = entity.get("properties") or {}
+    candidates = [props.get("image")] + list(props.get("images") or [])
+    for c in candidates:
+        url = c.get("url") if isinstance(c, dict) else c
+        if isinstance(url, str) and url.startswith("https://"):
+            return url
+    return None
+
+
+def _coords(entity: dict) -> tuple[float | None, float | None]:
+    loc = entity.get("location") or {}
+    try:
+        return float(loc["lat"]), float(loc["lon"])
+    except (KeyError, TypeError, ValueError):
+        return None, None
+
+
 def _parse_entity(entity: dict, *, as_destination: bool = False) -> dict:
     props = entity.get("properties") or {}
     name = _destination_label(entity) if as_destination else (entity.get("name") or "")
+    lat, lon = _coords(entity)
     return {
         "id": entity.get("entity_id") or entity.get("id"),
         "name": name,
@@ -139,6 +159,9 @@ def _parse_entity(entity: dict, *, as_destination: bool = False) -> dict:
         "description": (props.get("description") or props.get("short_description") or "")[:240],
         "location_query": _location_query(entity) if as_destination else None,
         "popularity": float(entity.get("popularity") or 0) if entity.get("popularity") is not None else None,
+        "image": _image_url(entity),
+        "lat": lat,
+        "lon": lon,
     }
 
 
@@ -159,6 +182,7 @@ def search(query: str, etype: str | None = None, take: int = 1) -> list[dict]:
             "id": e.get("entity_id") or e.get("id"),
             "name": e.get("name"),
             "type": etype or (types[0] if types else ""),
+            "image": _image_url(e),
         })
     return out
 
@@ -231,7 +255,8 @@ class _Mock:
         k = query.strip().lower()
         if k not in self.LIKES:
             return []
-        return [{"id": "mock:" + k.replace(" ", "_"), "name": query.strip(), "type": etype or "urn:entity:movie"}]
+        return [{"id": "mock:" + k.replace(" ", "_"), "name": query.strip(), "type": etype or "urn:entity:movie",
+                 "image": None}]
 
     def _tags(self, ids):
         out = []
@@ -263,6 +288,9 @@ class _Mock:
                 "description": "",
                 "location_query": name if ftype == "urn:entity:destination" else None,
                 "popularity": None,
+                "image": None,
+                "lat": None,
+                "lon": None,
             })
         scored.sort(key=lambda e: (-e["affinity"], e["name"]))
         return scored[:take]

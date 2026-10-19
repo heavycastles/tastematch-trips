@@ -33,7 +33,9 @@ Each traveler names 2–3 cultural favourites. TasteMatch Trips:
 5. Builds a round-robin itinerary so everyone gets equal slots, each pick citing Qloo affinity and source favourites.
 6. Optionally drafts a short narrative from those facts only (no hallucinations beyond the plan).
 
-The web UI shows ranking bars, the itinerary, fair-share counters, and the full agent trace. An n8n workflow
+The web UI shows the best shared match (group-fit ring, per-traveler fit), the fairness ranking, a photo itinerary
+with provenance, a map of the stops and the full agent trace (every Qloo call, count and time). Screenshots of a
+live run: `docs/screenshots/`; live demo video draft: `docs/demo-live-draft.mp4`. An n8n workflow
 (`n8n/telegram-group-trip.json`) can post the plan into a Telegram group.
 
 **Live verification (13 Oct 2026)** against `https://hackathon.api.qloo.com`: sample trio Aziz / Malika / Rustam
@@ -47,7 +49,7 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 - **Qloo client** (`app/qloo.py`): hackathon base URL, `X-Api-Key`, in-process LRU cache, 429 retries,
   destination labels with geocode disambiguation, offline mock graph for CI and demos without a key.
 - **n8n** Telegram group workflow; **Docker Compose** for app + n8n.
-- **Tests:** 13 pytest cases covering fairness math, mock planning, API routes, and optional live smoke.
+- **Tests:** 15 pytest cases covering fairness math, mock planning, API routes, live response shapes, and optional live smoke.
 
 ## Challenges we ran into
 
@@ -65,7 +67,7 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 - Fairness ranking that surfaces the least-matched traveler instead of hiding them.
 - Provenance on every itinerary slot (affinity + which favourites drove the pick).
 - Full agent trace in the UI so judges can see every Qloo call.
-- 13 passing tests; works offline via mock when the key is absent.
+- 15 passing tests; works offline via mock when the key is absent.
 
 ## What we learned
 

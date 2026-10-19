@@ -9,6 +9,7 @@ explains each pick with the Qloo signal it came from. An optional LLM writes the
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass, field
 
 import httpx
@@ -58,6 +59,7 @@ def fairness(per_traveler: dict[str, dict[str, float]], group: list[dict]) -> li
 
 
 def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -> dict:
+    t0 = time.perf_counter()
     tr = Trace()
     travelers, unresolved = resolve([dict(t) for t in travelers], tr)
     all_ids = [e["id"] for t in travelers for e in t["entities"]]
@@ -126,15 +128,21 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
             likes = ", ".join(e["name"] for t in travelers if t["label"] == lbl for e in t["entities"])
             itinerary.append({"day": d, "slot": s, "place": pick["name"], "for": lbl,
                               "affinity": pick["affinity"], "address": pick.get("address"),
+                              "description": pick.get("description") or "", "image": pick.get("image"),
+                              "lat": pick.get("lat"), "lon": pick.get("lon"),
                               "why": f"High Qloo affinity ({pick['affinity']:.2f}) with {lbl}'s tastes: {likes}",
                               "tags": pick.get("tags", [])})
     fair = {lbl: sum(1 for x in itinerary if x["for"] == lbl) for lbl in labels}
     result = {"destination": city, "ranking": ranking[:6], "itinerary": itinerary, "fair_share": fair,
               "unresolved": unresolved, "trace": tr.steps,
-              "travelers": [{"label": t["label"], "matched": [e["name"] for e in t["entities"]]} for t in travelers],
+              "travelers": [{"label": t["label"], "matched": [e["name"] for e in t["entities"]],
+                             "matched_detail": [{"name": e["name"], "type": (e.get("type") or "").rsplit(":", 1)[-1],
+                                                 "image": e.get("image")} for e in t["entities"]]}
+                            for t in travelers],
               "source": "qloo-hackathon-api" if qloo.live() else "mock",
               "note": "Qloo results are aggregate taste affinities, not predictions about any individual."}
     result["narrative"] = narrate(result)
+    result["stats"] = {"qloo_calls": len(tr.steps), "elapsed_ms": int((time.perf_counter() - t0) * 1000)}
     return result
 
 

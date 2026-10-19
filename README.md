@@ -19,10 +19,12 @@ and runs a fairness-aware agent over the **Qloo Taste AI** API.
 5. **itinerary** — round-robin slots so everyone gets their own picks; each pick cites the Qloo affinity and
    the favourites it came from (provenance). Optional LLM writes the pitch from those facts only.
 
-The UI shows the full agent trace (each Qloo call). Responses are cached in memory only, never stored in the
+The web UI shows the best shared match (group-fit ring, per-traveler fit, matched favourites with Qloo images),
+the fairness ranking, a photo itinerary with "for whom" tags and provenance, a map of the stops (Qloo
+coordinates) and the full agent trace (each Qloo call, with call count and time). Responses are cached in memory only, never stored in the
 repo. Results are presented as aggregate affinities, not predictions about individuals (per Qloo's safe-use guide).
 
-## Live example (verified 13 Oct 2026)
+## Live example (verified 13 Oct 2026, re-run 19 and 20 Oct with identical results)
 
 Against `https://hackathon.api.qloo.com` (`X-Api-Key`). Sample group: Aziz (Spirited Away, Patagonia),
 Malika (Daft Punk, Wes Anderson), Rustam (Anthony Bourdain, Chef's Table) — all six entities resolved.
@@ -35,6 +37,21 @@ Malika (Daft Punk, Wes Anderson), Rustam (Anthony Bourdain, Chef's Table) — al
 
 Fair itinerary (2 days): Aziz ×2, Malika ×2, Rustam ×2 — e.g. Hacienda Camino al Mar (Aziz 0.92),
 Playa Sayulita (Malika 0.83), Mita Mary (Rustam 0.80). Full sanitized sample: [`docs/live-sample.md`](docs/live-sample.md).
+
+## Screenshots (live Qloo API, 20 Oct 2026)
+
+Taken from the running app with a real hackathon `QLOO_API_KEY` (13 Qloo calls, plan in ~6 s) and the fictional
+sample group. Place photos are the images Qloo returns for each place.
+
+| Best shared match | Fairness ranking |
+|---|---|
+| ![Best shared match](docs/screenshots/04-best-match.png) | ![Fairness ranking](docs/screenshots/05-fairness-ranking.png) |
+| **Fair itinerary (Day 1)** | **Map + agent trace** |
+| ![Itinerary](docs/screenshots/06-itinerary-day1.png) | ![Map and trace](docs/screenshots/08-map-trace.png) |
+| **Sample group** | **Agent at work** |
+| ![Sample group](docs/screenshots/02-sample-group.png) | ![Agent at work](docs/screenshots/03-agent-working.png) |
+
+All screenshots: [`docs/screenshots/`](docs/screenshots/) (incl. full page `09-full-page.png`).
 
 ## Architecture
 
@@ -51,7 +68,7 @@ FastAPI  POST /api/plan  ──► plan()                         app/agent.py
                               └─ narrate()  optional LLM from Qloo facts only
         │
         ▼
-Web UI (/)  ranking bars · itinerary · agent trace · source badge (live | mock)
+Web UI (/)  match card · fairness ranking · photo itinerary · map · agent trace · live|mock badge
 n8n/telegram-group-trip.json  → Telegram group bot
 ```
 
@@ -63,7 +80,7 @@ retry on HTTP 429. Without `QLOO_API_KEY` a built-in mock taste graph is used (`
 ```bash
 cp .env.example .env               # QLOO_API_KEY from the hackathon key form
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q                # 13 tests (offline mock + live smoke if key present)
+.venv/bin/pytest -q                # 15 tests (offline mock + live smoke if key present)
 .venv/bin/python serve.py          # loads .env; http://localhost:8080 → "Load sample" → "Plan our trip"
 docker compose up --build          # app :8080 + n8n :5678
 ```
@@ -77,7 +94,7 @@ Never commit `.env` or the API key.
 |---|---|---|
 | GET | `/healthz` | `{ok, qloo: live\|mock}` |
 | GET | `/api/sample` | demo travelers (Aziz / Malika / Rustam) |
-| POST | `/api/plan` | body: `{travelers, days, destination?}` → ranking, itinerary, trace |
+| POST | `/api/plan` | body: `{travelers, days, destination?}` → ranking, itinerary (with Qloo image + coordinates), trace, stats |
 
 Example:
 
@@ -91,7 +108,9 @@ POST /api/plan
 - Devpost write-up: [`SUBMISSION.md`](SUBMISSION.md)
 - Demo script: [`docs/video-script.md`](docs/video-script.md)
 - Slides PDF: [`docs/slides.pdf`](docs/slides.pdf) · cover: [`docs/cover.png`](docs/cover.png)
-- Draft demo video: [`docs/demo-draft.mp4`](docs/demo-draft.mp4) (pending user review)
+- **Live demo video draft:** [`docs/demo-live-draft.mp4`](docs/demo-live-draft.mp4) (1:59, real screen recording of the live app; script [`docs/video-script-live.md`](docs/video-script-live.md)) — pending owner review
+- Older draft (slides + narration): [`docs/demo-draft.mp4`](docs/demo-draft.mp4)
+- Screenshots of the live run: [`docs/screenshots/`](docs/screenshots/)
 
 
 ## Preflight / publish (local)

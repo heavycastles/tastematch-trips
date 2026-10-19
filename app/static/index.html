@@ -1,35 +1,355 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TasteMatch Trips — group travel that's fair to everyone's taste</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TasteMatch Trips — one trip, everyone's taste</title>
+<meta name="description" content="A fairness-aware group-travel agent on Qloo Taste AI: find the destination and itinerary that fit the whole group.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23ff5a5f'/%3E%3Cpath d='M16 7c-4 0-7 3-7 7 0 5 7 11 7 11s7-6 7-11c0-4-3-7-7-7z' fill='white'/%3E%3C/svg%3E">
 <style>
-body{font-family:system-ui,sans-serif;margin:0;background:#fbf7f2;color:#222}header{padding:18px 28px;background:#1d1a3a;color:#fff}
-h1{margin:0;font-size:22px}main{max-width:1100px;margin:auto;padding:20px;display:grid;grid-template-columns:380px 1fr;gap:20px}
-.card{background:#fff;border-radius:10px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px #0002}
-input,select{padding:6px;border:1px solid #ccc;border-radius:5px;margin:2px 0}button{background:#ff5a5f;color:#fff;border:0;border-radius:6px;padding:9px 14px;font-weight:600;cursor:pointer}
-.ghost{background:#eee;color:#222}.bar{height:8px;background:#ff5a5f;border-radius:4px}.chip{display:inline-block;background:#f1ecff;border-radius:10px;padding:1px 8px;margin:2px;font-size:12px}
-small{color:#666}table{width:100%;border-collapse:collapse;font-size:13px}td{border-top:1px solid #eee;padding:5px}
-@media(max-width:900px){main{grid-template-columns:1fr}}
-</style></head><body>
-<header><h1>TasteMatch Trips</h1><small style="color:#ccd">Each friend names a few movies, artists or brands. A Qloo-powered agent finds the destination that fits the <b>whole</b> group and an itinerary where nobody is left out.</small> <small id="be" style="color:#ccd"></small></header>
-<main><section><div id="tv"></div>
-<div class="card"><button class="ghost" id="add">+ traveler</button> <button class="ghost" id="smp">Load sample</button><br><br>
-Days <input id="days" type="number" min="1" max="5" value="2" style="width:50px"> Destination (optional) <input id="dest" placeholder="auto" style="width:110px"><br><br>
-<button id="go">Plan our trip</button> <span id="st"></span></div><small>Use nicknames only. Qloo results are aggregate taste affinities, not personal predictions.</small></section>
-<section id="out"></section></main>
+:root{
+  --ink:#16142e;--ink2:#3b3857;--muted:#75718f;--line:#ebe8f2;--bg:#f7f6fb;--card:#fff;
+  --coral:#ff5a5f;--coral2:#ff8a4c;--indigo:#2b2470;--violet:#5b3fd6;
+  --ok:#12b886;--warn:#f59f00;--r:18px;
+  --shadow:0 1px 2px rgba(22,20,46,.04),0 8px 28px rgba(22,20,46,.07);
+  --font:"Inter","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.45}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1240px;margin:0 auto;padding:0 28px}
+/* nav + hero */
+.hero{background:radial-gradient(900px 380px at 85% -10%,rgba(255,90,95,.35),transparent 60%),radial-gradient(700px 400px at 0% 120%,rgba(91,63,214,.45),transparent 60%),linear-gradient(135deg,#1a1640 0%,#231c5c 55%,#2d1f63 100%);color:#fff;padding-bottom:78px;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1px);background-size:22px 22px;mask-image:linear-gradient(to bottom,#000,transparent 85%);pointer-events:none}
+nav{display:flex;align-items:center;gap:14px;height:68px;position:relative;z-index:1}
+.logo{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,var(--coral),var(--coral2));display:grid;place-items:center;box-shadow:0 6px 18px rgba(255,90,95,.45)}
+.brand{font-weight:800;font-size:18px;letter-spacing:-.2px}
+.brand span{color:#ffb4a6;font-weight:700}
+.spacer{flex:1}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 13px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);font-size:12.5px;font-weight:600;backdrop-filter:blur(6px)}
+.dot{width:8px;height:8px;border-radius:50%;background:#9a96b8}
+.dot.live{background:#3ee6a8;box-shadow:0 0 0 0 rgba(62,230,168,.6);animation:pulse 2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(62,230,168,0)}100%{box-shadow:0 0 0 0 rgba(62,230,168,0)}}
+.hero h1{font-size:44px;line-height:1.08;letter-spacing:-1.2px;margin:34px 0 12px;font-weight:800;max-width:720px;position:relative;z-index:1}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,#ff8f7a,#ffc078);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.lead{color:#cfcbe8;font-size:16.5px;max-width:640px;margin:0 0 20px;position:relative;z-index:1}
+.badges{display:flex;gap:10px;flex-wrap:wrap;position:relative;z-index:1}
+.badges .pill{font-weight:500;color:#e6e3f7}
+/* layout */
+main.wrap{display:grid;grid-template-columns:400px 1fr;gap:24px;margin-top:-54px;position:relative;z-index:2;padding-bottom:48px}
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);border:1px solid rgba(22,20,46,.04)}
+.panel{padding:20px;position:sticky;top:16px}
+.ph{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.ph h2{font-size:16px;margin:0;font-weight:750;letter-spacing:-.2px}
+.ph small{color:var(--muted)}
+.btn{border:0;border-radius:12px;padding:10px 14px;font-weight:650;cursor:pointer;transition:transform .12s,box-shadow .2s,background .2s}
+.btn:active{transform:scale(.98)}
+.ghost{background:#f2f0f8;color:var(--ink2)}
+.ghost:hover{background:#e9e6f4}
+.primary{width:100%;padding:15px;font-size:15.5px;color:#fff;background:linear-gradient(135deg,var(--coral),var(--coral2));box-shadow:0 10px 24px rgba(255,90,95,.35);display:flex;align-items:center;justify-content:center;gap:10px}
+.primary:hover{box-shadow:0 14px 30px rgba(255,90,95,.45)}
+.primary[disabled]{opacity:.75;cursor:progress}
+.trav{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fcfcfe;transition:border-color .2s}
+.trav:focus-within{border-color:#cfc8f3;background:#fff}
+.th{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:750;font-size:14px;flex:none;box-shadow:inset 0 -2px 0 rgba(0,0,0,.12)}
+.lbl{border:0;background:transparent;font-weight:700;font-size:15px;flex:1;min-width:0;padding:4px 2px;outline:none}
+.lbl::placeholder{color:#b0acc6}
+.x{border:0;background:transparent;color:#b0acc6;cursor:pointer;font-size:18px;line-height:1;padding:4px 6px;border-radius:8px}
+.x:hover{background:#f2f0f8;color:var(--ink2)}
+.like{display:flex;gap:6px;margin-top:6px}
+.like select{appearance:none;border:1px solid var(--line);background:#f6f4fb url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2375718f' fill='none' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 9px center;border-radius:10px;padding:8px 24px 8px 10px;font-size:12.5px;font-weight:600;color:var(--ink2);width:112px;flex:none}
+.like input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:8px 11px;outline:none;background:#fff}
+.like input:focus,.opt input:focus{border-color:#a99cf0;box-shadow:0 0 0 3px rgba(91,63,214,.12)}
+.row{display:flex;gap:8px;align-items:center}
+.opts{display:grid;grid-template-columns:auto 1fr;gap:12px;margin:14px 0 16px;align-items:end}
+.opt label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.seg{display:flex;background:#f2f0f8;border-radius:11px;padding:3px}
+.seg button{border:0;background:transparent;width:34px;height:32px;border-radius:9px;font-weight:700;color:var(--muted);cursor:pointer}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(22,20,46,.12)}
+.opt input{width:100%;border:1px solid var(--line);border-radius:11px;padding:8px 11px;height:38px;outline:none}
+.note{display:flex;gap:8px;color:var(--muted);font-size:12px;margin-top:12px;align-items:flex-start}
+#st{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;min-height:18px}
+/* results */
+#out{display:flex;flex-direction:column;gap:20px;min-width:0}
+.empty{padding:36px 34px;text-align:center}
+.empty h3{font-size:21px;margin:14px 0 6px;letter-spacing:-.3px}
+.empty p{color:var(--muted);margin:0 auto 22px;max-width:460px}
+.steps3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;text-align:left}
+.s3{border:1px solid var(--line);border-radius:14px;padding:14px}
+.s3 b{display:block;margin:8px 0 3px}
+.s3 span{color:var(--muted);font-size:12.5px}
+.num{width:26px;height:26px;border-radius:8px;background:#f1eefe;color:var(--violet);display:grid;place-items:center;font-weight:800;font-size:13px}
+/* loading */
+.loading{padding:26px 28px}
+.lstep{display:flex;align-items:center;gap:12px;padding:9px 0;color:#b0acc6;transition:color .3s}
+.lstep .ic{width:24px;height:24px;border-radius:50%;border:2px solid #e3e0ee;display:grid;place-items:center;flex:none}
+.lstep.on{color:var(--ink)}
+.lstep.on .ic{border-color:var(--violet);border-top-color:transparent;animation:spin .8s linear infinite}
+.lstep.done{color:var(--ink2)}
+.lstep.done .ic{border-color:var(--ok);background:var(--ok);animation:none}
+.lstep.done .ic:after{content:"";width:8px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lstep code{font-size:11.5px;background:#f6f4fb;color:var(--muted);padding:2px 7px;border-radius:6px;margin-left:auto}
+/* destination hero */
+.dest{color:#fff;padding:26px 28px;background:radial-gradient(600px 260px at 100% 0%,rgba(255,138,76,.35),transparent 60%),linear-gradient(135deg,#221b5e,#3a2a8a 60%,#4b2f91);overflow:hidden;position:relative;animation:rise .5s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.eyebrow{font-size:11.5px;font-weight:750;letter-spacing:1.2px;text-transform:uppercase;color:#ffb4a6}
+.dest h2{font-size:38px;letter-spacing:-1px;margin:6px 0 10px;line-height:1.05}
+.dtop{display:flex;gap:24px;align-items:flex-start}
+.dtop .txt{flex:1;min-width:0}
+.dest p{color:#dcd8f2;margin:0 0 14px;font-size:14.5px;max-width:600px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.dchip{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);padding:5px 11px;border-radius:999px;font-size:12.5px;font-weight:600}
+.ring{width:132px;height:132px;flex:none;position:relative}
+.ring svg{transform:rotate(-90deg)}
+.ring .v{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.ring .v b{font-size:32px;letter-spacing:-1px;display:block;line-height:1}
+.ring .v span{font-size:11px;color:#cfcbe8;font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+.who{display:grid;gap:10px;margin-top:22px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.wcard{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:12px}
+.wtop{display:flex;align-items:center;gap:10px}
+.wtop b{font-size:14px}
+.wtop small{margin-left:auto;font-weight:700;font-size:13px}
+.thumbs{display:flex;flex-direction:column;gap:5px;margin:10px 0 10px}
+.thumb{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border-radius:10px;padding:4px 9px 4px 4px;font-size:12.5px;min-width:0}
+.thumb img,.thumb i{width:26px;height:26px;border-radius:7px;object-fit:cover;flex:none;background:rgba(255,255,255,.2);display:grid;place-items:center;font-style:normal;font-weight:700;font-size:11px}
+.thumb span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mbar{height:6px;background:rgba(255,255,255,.14);border-radius:9px;overflow:hidden}
+.mbar div{height:100%;border-radius:9px;transition:width .9s cubic-bezier(.2,.8,.2,1)}
+.warn{background:#fff8e6;border:1px solid #ffe3a3;color:#7a5600;border-radius:14px;padding:11px 14px;font-size:13px}
+/* sections */
+.sec{padding:22px 24px;animation:rise .5s ease both}
+.sh{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.sh h3{margin:0;font-size:17px;letter-spacing:-.3px}
+.sh .sub{color:var(--muted);font-size:12.5px}
+.formula{margin-left:auto;font-size:12px;background:#f4f2fb;color:var(--ink2);padding:6px 11px;border-radius:999px;font-weight:600}
+.rk{display:grid;grid-template-columns:30px minmax(150px,1.1fr) 1.3fr 1.4fr;gap:16px;align-items:center;padding:12px 10px;border-radius:12px}
+.rk+.rk{border-top:1px solid var(--line)}
+.rk.top{background:linear-gradient(90deg,#fff4f1,#fff 70%);border-top-color:transparent}
+.rk .n{width:28px;height:28px;border-radius:9px;background:#f2f0f8;display:grid;place-items:center;font-weight:800;color:var(--muted);font-size:13px}
+.rk.top .n{background:linear-gradient(135deg,var(--coral),var(--coral2));color:#fff}
+.rk .nm b{display:block;font-size:14.5px}
+.rk .nm small{color:var(--muted);font-size:12px}
+.gf{display:flex;align-items:center;gap:10px}
+.gbar{flex:1;height:9px;background:#f1eff7;border-radius:9px;overflow:hidden}
+.gbar div{height:100%;background:linear-gradient(90deg,#7b61ff,var(--coral));border-radius:9px;transition:width 1s cubic-bezier(.2,.8,.2,1)}
+.gf b{width:38px;text-align:right;font-variant-numeric:tabular-nums}
+.pt{display:grid;gap:4px}
+.ptr{display:grid;grid-template-columns:62px 1fr 34px;gap:8px;align-items:center;font-size:11.5px;color:var(--ink2)}
+.ptr .bb{height:5px;background:#f1eff7;border-radius:9px;overflow:hidden}
+.ptr .bb div{height:100%;border-radius:9px}
+.ptr span:last-child{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.ptr.low{font-weight:700}
+.ptr.low span:last-child{color:var(--ink)}
+/* itinerary */
+.share{display:flex;height:30px;border-radius:10px;overflow:hidden;margin-left:auto;min-width:260px}
+.share div{display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700;transition:flex .6s}
+.days{display:grid;gap:18px}
+.day h4{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.stops{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.stop{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff;display:flex;flex-direction:column;transition:transform .2s,box-shadow .2s}
+.stop:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.img{height:128px;background:linear-gradient(135deg,#ece9f7,#f8eef0);position:relative;display:grid;place-items:center;color:rgba(255,255,255,.95);font-weight:800;font-size:30px;text-shadow:0 2px 10px rgba(22,20,46,.18)}
+.img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.slot{position:absolute;left:10px;top:10px;background:rgba(22,20,46,.72);color:#fff;font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;backdrop-filter:blur(4px);z-index:1;text-transform:capitalize}
+.pin{position:absolute;right:10px;top:10px;width:24px;height:24px;border-radius:50%;color:#fff;font-size:11.5px;font-weight:800;display:grid;place-items:center;z-index:1;border:2px solid #fff}
+.sb{padding:12px 13px 13px;display:flex;flex-direction:column;gap:7px;flex:1}
+.sb b{font-size:14.5px;line-height:1.25}
+.forrow{display:flex;align-items:center;gap:8px;font-size:12px}
+.fp{color:#fff;padding:3px 9px;border-radius:999px;font-weight:700}
+.match{font-weight:700;color:var(--ink2)}
+.desc{color:var(--muted);font-size:12.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tags{display:flex;gap:5px;flex-wrap:wrap}
+.tag{background:#f4f2fb;color:var(--ink2);border-radius:7px;padding:2px 7px;font-size:11px;font-weight:600}
+.why{margin-top:auto;font-size:11.5px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+.why b{font-size:11.5px;color:var(--ink2)}
+/* map + trace */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.map{border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#eef3fb,#e6eef9);border:1px solid var(--line)}
+.map svg{display:block;width:100%;height:auto}
+.slist{margin-top:12px;display:grid;gap:6px}.slist div{display:flex;align-items:center;gap:9px;font-size:12.5px}.sn{width:20px;height:20px;border-radius:50%;color:#fff;font-weight:800;font-size:11px;display:grid;place-items:center;flex:none}.sp{font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sd{color:var(--muted);font-size:12px;text-transform:capitalize}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.stats{display:flex;gap:8px;margin-left:auto}
+.stat{background:#f4f2fb;border-radius:10px;padding:5px 10px;font-size:12px;color:var(--ink2);font-weight:600}
+.stat b{color:var(--ink)}
+.tl{position:relative;max-height:520px;overflow:auto;padding-right:6px}
+.tli{display:grid;grid-template-columns:18px 1fr;gap:10px;padding:6px 0;position:relative}
+.tli:before{content:"";position:absolute;left:8px;top:22px;bottom:-8px;width:2px;background:var(--line)}
+.tli:last-child:before{display:none}
+.tdot{width:18px;height:18px;border-radius:50%;margin-top:2px;border:3px solid #fff;box-shadow:0 0 0 1.5px currentColor;background:currentColor}
+.tt{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tool{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:7px}
+.ep{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--muted)}
+.td{font-size:12.5px;color:var(--ink2);margin-top:2px}
+.td .ok{color:var(--ok);font-weight:700}.td .no{color:#e03131;font-weight:700}
+footer{color:var(--muted);font-size:12px;text-align:center;padding:0 0 34px}
+@media(max-width:1060px){main.wrap{grid-template-columns:1fr}.panel{position:static}.stops{grid-template-columns:1fr 1fr}.two{grid-template-columns:1fr}}
+@media(max-width:640px){.hero h1{font-size:32px}.stops,.steps3{grid-template-columns:1fr}.rk{grid-template-columns:28px 1fr}.rk .gf,.rk .pt{grid-column:2}.dtop{flex-direction:column}.share{min-width:0;width:100%}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <nav>
+      <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2.5c-4 0-7 3-7 7 0 5.2 7 12 7 12s7-6.8 7-12c0-4-3-7-7-7z" fill="#fff"/><path d="M12 13.2l-2.6-2.5a1.6 1.6 0 1 1 2.6-1.9 1.6 1.6 0 1 1 2.6 1.9z" fill="#ff5a5f"/></svg></div>
+      <div class="brand">TasteMatch <span>Trips</span></div>
+      <div class="spacer"></div>
+      <div class="pill" id="bepill"><i class="dot" id="bedot"></i><span id="be">Qloo Taste AI</span></div>
+    </nav>
+    <h1>One trip. <em>Everyone's taste.</em></h1>
+    <p class="lead">Each friend names a few movies, artists or brands they love. A Qloo-powered agent finds the destination that fits the <b>whole</b> group — and an itinerary where nobody is left out.</p>
+    <div class="badges">
+      <span class="pill">◎ Qloo Taste AI · cross-domain affinities</span>
+      <span class="pill">⚖ Fairness-ranked, not majority-ranked</span>
+      <span class="pill">🔒 Nicknames only · no personal data</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <div class="card panel">
+      <div class="ph"><h2>Your group</h2><small id="cnt"></small><div class="spacer"></div><button class="btn ghost" id="smp">Load sample</button></div>
+      <div id="tv"></div>
+      <button class="btn ghost" id="add" style="width:100%">+ Add traveler</button>
+      <div class="opts">
+        <div class="opt"><label>Days</label><div class="seg" id="seg"></div><input id="days" type="hidden" value="2"></div>
+        <div class="opt"><label>Destination</label><input id="dest" placeholder="Let Qloo choose" maxlength="80"></div>
+      </div>
+      <button class="btn primary" id="go"><span id="golbl">Plan our trip</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-6-6 6 6-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div id="st"></div>
+      <div class="note"><span>ⓘ</span><span>Use nicknames only. Qloo results are aggregate taste affinities, not predictions about any individual.</span></div>
+    </div>
+  </section>
+  <section id="out"></section>
+</main>
+<footer>TasteMatch Trips · built on the Qloo Taste AI hackathon API · MIT license</footer>
+
 <script>
-const $=id=>document.getElementById(id),T=['movie','artist','brand','book','tv_show','video_game','podcast','person'];
-const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-fetch('/healthz').then(r=>r.json()).then(h=>$('be').textContent='· Qloo: '+h.qloo);
-function trav(t={label:'',likes:[{name:'',type:'movie'},{name:'',type:'artist'}]}){const d=document.createElement('div');d.className='card trav';
- d.innerHTML=`<input class="lbl" placeholder="Nickname" value="${esc(t.label)}">`+t.likes.concat([{name:'',type:'brand'}]).slice(0,3).map(l=>`<div><input class="ln" placeholder="e.g. Spirited Away" value="${esc(l.name)}"><select class="lt">${T.map(x=>`<option ${x==l.type?'selected':''}>${x}</option>`).join('')}</select></div>`).join('');$('tv').appendChild(d)}
-trav();trav();$('add').onclick=()=>trav();
-$('smp').onclick=async()=>{const s=await (await fetch('/api/sample')).json();$('tv').innerHTML='';s.travelers.forEach(trav);$('days').value=s.days};
-$('go').onclick=async()=>{const travelers=[...document.querySelectorAll('.trav')].map(d=>({label:d.querySelector('.lbl').value.trim(),
- likes:[...d.querySelectorAll('.ln')].map((x,i)=>({name:x.value.trim(),type:d.querySelectorAll('.lt')[i].value})).filter(l=>l.name)})).filter(t=>t.label&&t.likes.length);
- $('st').textContent='Asking Qloo…';const r=await fetch('/api/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({travelers,days:+$('days').value,destination:$('dest').value||null})});
- const d=await r.json();$('st').textContent='';if(!r.ok||d.error){$('out').innerHTML='<div class="card">'+esc(d.ask||JSON.stringify(d.detail||d))+'</div>';return}
- let h=`<div class="card"><h2 style="margin:0">${esc(d.destination)}</h2><p>${esc(d.narrative)}</p>${d.unresolved.length?'<small>Not found in Qloo: '+esc(d.unresolved.join('; '))+'</small>':''}</div>`;
- h+='<div class="card"><b>Destinations ranked by group fit</b><table>'+d.ranking.map(x=>`<tr><td>${esc(x.name)}</td><td style="width:40%"><div class="bar" style="width:${x.group_fit}%"></div></td><td>${x.group_fit}</td><td><small>${Object.entries(x.per_traveler).map(([k,v])=>esc(k)+' '+v.toFixed(2)).join(' · ')}</small></td></tr>`).join('')+'</table></div>';
- h+='<div class="card"><b>Itinerary</b> <small>fair share: '+Object.entries(d.fair_share).map(([k,v])=>esc(k)+' ×'+v).join(', ')+'</small><table>'+d.itinerary.map(x=>`<tr><td>Day ${x.day} ${x.slot}</td><td><b>${esc(x.place)}</b><br><small>${esc(x.why)}</small><br>${x.tags.map(t=>'<span class="chip">'+esc(t)+'</span>').join('')}</td><td>for ${esc(x.for)}</td></tr>`).join('')+'</table></div>';
- h+='<div class="card"><b>Agent trace (Qloo calls)</b><table>'+d.trace.map(s=>`<tr><td>${s.tool}</td><td>${s.endpoint}</td><td><small>${esc(JSON.stringify(Object.fromEntries(Object.entries(s).filter(([k])=>!['tool','endpoint'].includes(k)))))}</small></td></tr>`).join('')+'</table><small>source: '+d.source+'</small></div>';
- $('out').innerHTML=h};
-</script></body></html>
+const $=id=>document.getElementById(id);
+const T=['movie','artist','brand','book','tv_show','video_game','podcast','person'];
+const TL={movie:'Movie',artist:'Artist',brand:'Brand',book:'Book',tv_show:'TV show',video_game:'Game',podcast:'Podcast',person:'Person'};
+const COLORS=['#0ea5a4','#7c4dff','#f08c00','#e64980','#1c7ed6','#2f9e44'];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeImg=u=>typeof u==='string'&&/^https:\/\//.test(u)?u:null;
+let colorOf={};
+function initials(s){return esc((s||'?').trim().charAt(0).toUpperCase()||'?')}
+/* backend badge */
+fetch('/healthz').then(r=>r.json()).then(h=>{const live=h.qloo==='live';$('bedot').className='dot'+(live?' live':'');$('be').textContent=live?'Qloo Taste AI · live':'Qloo Taste AI · offline mock'}).catch(()=>{});
+/* days segmented control */
+for(let d=1;d<=5;d++){const b=document.createElement('button');b.textContent=d;b.type='button';b.onclick=()=>setDays(d);$('seg').appendChild(b)}
+function setDays(d){$('days').value=d;[...$('seg').children].forEach((b,i)=>b.classList.toggle('on',i+1===+d))}
+setDays(2);
+/* traveler cards */
+function recolor(){[...document.querySelectorAll('.trav')].forEach((d,i)=>{const c=COLORS[i%COLORS.length];d.querySelector('.av').style.background=c;d.dataset.color=c});$('cnt').textContent=document.querySelectorAll('.trav').length+' travelers'}
+function trav(t={label:'',likes:[{name:'',type:'movie'},{name:'',type:'artist'}]}){
+  const d=document.createElement('div');d.className='trav';
+  const likes=t.likes.concat([{name:'',type:'brand'},{name:'',type:'tv_show'}]).slice(0,3);
+  d.innerHTML=`<div class="th"><div class="av">${initials(t.label)}</div><input class="lbl" placeholder="Nickname" maxlength="30" value="${esc(t.label)}"><button class="x" title="Remove">×</button></div>`+
+    likes.map((l,i)=>`<div class="like"><select class="lt">${T.map(x=>`<option value="${x}" ${x==l.type?'selected':''}>${TL[x]}</option>`).join('')}</select><input class="ln" maxlength="120" placeholder="${['e.g. Spirited Away','e.g. Daft Punk','e.g. Patagonia'][i]}" value="${esc(l.name)}"></div>`).join('');
+  d.querySelector('.lbl').oninput=e=>d.querySelector('.av').textContent=(e.target.value.trim()[0]||'?').toUpperCase();
+  d.querySelector('.x').onclick=()=>{if(document.querySelectorAll('.trav').length>1){d.remove();recolor()}};
+  $('tv').appendChild(d);recolor()}
+trav();trav();
+$('add').onclick=()=>{if(document.querySelectorAll('.trav').length<6)trav()};
+$('smp').onclick=async()=>{const s=await (await fetch('/api/sample')).json();$('tv').innerHTML='';s.travelers.forEach(trav);setDays(s.days);$('dest').value=''};
+/* empty state */
+function emptyState(){$('out').innerHTML=`<div class="card empty">
+ <svg width="150" height="92" viewBox="0 0 150 92"><circle cx="52" cy="46" r="34" fill="#0ea5a4" opacity=".18"/><circle cx="98" cy="46" r="34" fill="#7c4dff" opacity=".18"/><circle cx="75" cy="30" r="28" fill="#f08c00" opacity=".18"/><circle cx="75" cy="44" r="9" fill="#ff5a5f"/><circle cx="75" cy="44" r="16" fill="none" stroke="#ff5a5f" stroke-opacity=".35" stroke-width="2"/></svg>
+ <h3>Where do your tastes overlap?</h3><p>Add each traveler's favourite movies, artists, brands or shows — or tap <b>Load sample</b> — and the agent will find the trip that's fair to everyone.</p>
+ <div class="steps3"><div class="s3"><div class="num">1</div><b>Resolve tastes</b><span>Each favourite becomes a Qloo entity via <code>/search</code>.</span></div>
+ <div class="s3"><div class="num">2</div><b>Rank fairly</b><span>Destinations scored per traveler; the least-happy friend counts 40%.</span></div>
+ <div class="s3"><div class="num">3</div><b>Share the days</b><span>Local places from Qloo, round-robin so everyone gets their picks.</span></div></div></div>`}
+emptyState();
+/* loading */
+const LSTEPS=[['Resolving favourites in Qloo','/search'],['Scoring destinations for the whole group','/v2/insights'],['Scoring the same cities for each traveler','filter.entities'],['Ranking by fairness','40·40·20'],['Finding local places for everyone','/v2/insights place']];
+let ltimer;
+function loading(){$('out').innerHTML=`<div class="card loading"><div class="sh"><h3>Agent at work</h3><span class="sub">Calling Qloo Taste AI…</span></div>${LSTEPS.map(([a,b])=>`<div class="lstep"><span class="ic"></span><span>${a}</span><code>${b}</code></div>`).join('')}</div>`;
+  const els=[...document.querySelectorAll('.lstep')];let i=0;els[0].classList.add('on');
+  ltimer=setInterval(()=>{if(i<els.length-1){els[i].classList.replace('on','done');i++;els[i].classList.add('on')}},1100)}
+/* plan */
+$('go').onclick=async()=>{
+  const travelers=[...document.querySelectorAll('.trav')].map(d=>({label:d.querySelector('.lbl').value.trim(),
+    likes:[...d.querySelectorAll('.ln')].map((x,i)=>({name:x.value.trim(),type:d.querySelectorAll('.lt')[i].value})).filter(l=>l.name)})).filter(t=>t.label&&t.likes.length);
+  if(!travelers.length){$('st').textContent='Add at least one traveler with a nickname and a favourite.';return}
+  colorOf={};[...document.querySelectorAll('.trav')].forEach(d=>{const l=d.querySelector('.lbl').value.trim();if(l)colorOf[l]=d.dataset.color});
+  $('go').disabled=true;$('golbl').textContent='Asking Qloo…';$('st').textContent='';loading();
+  if($('out').getBoundingClientRect().top<0)$('out').scrollIntoView({behavior:'smooth',block:'start'});
+  try{
+    const r=await fetch('/api/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({travelers,days:+$('days').value,destination:$('dest').value.trim()||null})});
+    const d=await r.json();clearInterval(ltimer);
+    if(!r.ok||d.error){$('out').innerHTML='<div class="card sec"><div class="sh"><h3>Hmm, not quite</h3></div><p>'+esc(d.ask||(d.detail&&JSON.stringify(d.detail))||'Something went wrong.')+'</p></div>';return}
+    render(d);
+  }catch(e){clearInterval(ltimer);$('out').innerHTML='<div class="card sec"><p>Network error — please try again.</p></div>'}
+  finally{$('go').disabled=false;$('golbl').textContent='Plan our trip'}};
+const col=l=>colorOf[l]||COLORS[Object.keys(colorOf).length%COLORS.length];
+function ring(v){const R=56,C=2*Math.PI*R,f=Math.max(0,Math.min(100,v))/100;
+  return `<div class="ring"><svg width="132" height="132"><defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#ffc078"/><stop offset="1" stop-color="#ff5a5f"/></linearGradient></defs><circle cx="66" cy="66" r="${R}" stroke="rgba(255,255,255,.14)" stroke-width="11" fill="none"/><circle cx="66" cy="66" r="${R}" stroke="url(#rg)" stroke-width="11" fill="none" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-f)}"/></svg><div class="v"><div><b>${v.toFixed(1)}</b><span>group fit</span></div></div></div>`}
+function render(d){
+  const top=d.ranking[0]||{per_traveler:{},group_fit:0};
+  const labels=d.travelers.map(t=>t.label);labels.forEach((l,i)=>{if(!colorOf[l])colorOf[l]=COLORS[i%COLORS.length]});
+  let h='';
+  // hero
+  h+=`<div class="card dest"><div class="dtop"><div class="txt"><div class="eyebrow">Best shared match</div><h2>${esc(d.destination)}</h2><p>${esc(d.narrative)}</p>
+   <div class="chips"><span class="dchip">⚖ least-matched: ${esc(top.least_happy||'—')}</span><span class="dchip">${d.itinerary.length} stops · ${Object.keys(d.fair_share).length} travelers</span><span class="dchip">${d.source==='mock'?'offline mock graph':'live Qloo data'}</span></div></div>${ring(top.group_fit||0)}</div>
+   <div class="who">${d.travelers.map(t=>{const a=top.per_traveler[t.label]||0;const md=t.matched_detail||t.matched.map(n=>({name:n}));
+     return `<div class="wcard"><div class="wtop"><div class="av" style="background:${col(t.label)};width:28px;height:28px;font-size:12px">${initials(t.label)}</div><b>${esc(t.label)}</b><small>${Math.round(a*100)}%</small></div>
+     <div class="thumbs">${md.slice(0,2).map(m=>`<div class="thumb">${safeImg(m.image)?`<img src="${esc(m.image)}" referrerpolicy="no-referrer" alt="" onerror="this.replaceWith(Object.assign(document.createElement('i'),{textContent:'${initials(m.name)}'}))">`:`<i>${initials(m.name)}</i>`}<span>${esc(m.name)}</span></div>`).join('')}</div>
+     <div class="mbar"><div style="width:0;background:${col(t.label)}" data-w="${Math.round(a*100)}"></div></div></div>`}).join('')}</div></div>`;
+  if(d.unresolved&&d.unresolved.length)h+=`<div class="warn">Not found in Qloo (skipped, never guessed): ${esc(d.unresolved.join('; '))}</div>`;
+  // ranking
+  h+=`<div class="card sec"><div class="sh"><h3>Why ${esc((d.destination||'this trip').split(',')[0])}? Destinations ranked by fairness</h3><span class="formula">40% average · 40% least-happy · 20% group</span></div>`+
+   d.ranking.map((x,i)=>{const low=x.least_happy;return `<div class="rk ${i===0?'top':''}"><div class="n">${i+1}</div><div class="nm"><b>${esc(x.name)}</b><small>lowest: ${esc(low||'—')}</small></div>
+    <div class="gf"><div class="gbar"><div style="width:0" data-w="${x.group_fit}"></div></div><b>${x.group_fit.toFixed(1)}</b></div>
+    <div class="pt">${Object.entries(x.per_traveler).map(([k,v])=>`<div class="ptr ${k===low?'low':''}"><span>${esc(k)}</span><div class="bb"><div style="width:${Math.round(v*100)}%;background:${col(k)}"></div></div><span>${v.toFixed(2)}</span></div>`).join('')}</div></div>`}).join('')+`</div>`;
+  // itinerary
+  const tot=d.itinerary.length||1;
+  h+=`<div class="card sec"><div class="sh"><h3>Your ${Math.max(0,...d.itinerary.map(x=>x.day))}-day itinerary</h3><span class="sub">every pick explained by a Qloo signal</span>
+   <div class="share">${Object.entries(d.fair_share).map(([k,v])=>`<div style="flex:${v||0.0001};background:${col(k)}">${v?esc(k)+' ×'+v:''}</div>`).join('')}</div></div><div class="days">`;
+  const byDay={};d.itinerary.forEach((x,i)=>{x._n=i+1;(byDay[x.day]=byDay[x.day]||[]).push(x)});
+  for(const [day,items] of Object.entries(byDay)){
+    h+=`<div class="day"><h4>Day ${day}</h4><div class="stops">${items.map(x=>{const tags=[...new Set(x.tags||[])].slice(0,4);
+     return `<div class="stop"><div class="img" style="background:linear-gradient(135deg,${col(x.for)}22,${col(x.for)}55)"><span class="slot">${esc(x.slot)}</span><span class="pin" style="background:${col(x.for)}">${x._n}</span>${initials(x.place)}${safeImg(x.image)?`<img src="${esc(x.image)}" referrerpolicy="no-referrer" loading="lazy" alt="" onerror="this.remove()">`:''}</div>
+      <div class="sb"><b>${esc(x.place)}</b><div class="forrow"><span class="fp" style="background:${col(x.for)}">for ${esc(x.for)}</span><span class="match">${Math.round(x.affinity*100)}% taste match</span></div>
+      ${x.description?`<div class="desc">${esc(x.description)}</div>`:(x.address?`<div class="desc">${esc(x.address)}</div>`:'')}
+      <div class="tags">${tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
+      <div class="why"><b>Why:</b> ${esc(x.why.replace(/^High Qloo affinity \([0-9.]+\) with /,'Qloo affinity with '))}</div></div></div>`}).join('')}</div></div>`}
+  h+=`</div></div>`;
+  // map + trace
+  const pts=d.itinerary.filter(x=>typeof x.lat==='number'&&typeof x.lon==='number');
+  const st=d.stats||{qloo_calls:d.trace.length};
+  h+=`<div class="two">${pts.length>=2?`<div class="card sec"><div class="sh"><h3>Where it all is</h3><span class="sub">${pts.length} stops · Qloo coordinates</span></div>${mapSvg(pts)}<div class="legend">${labels.map(l=>`<span><i style="background:${col(l)}"></i>${esc(l)}</span>`).join('')}</div><div class="slist">${pts.map(p=>`<div><span class="sn" style="background:${col(p.for)}">${p._n}</span><span class="sp">${esc(p.place)}</span><span class="sd">Day ${p.day} · ${esc(p.slot)}</span></div>`).join('')}</div></div>`:''}
+   <div class="card sec" ${pts.length>=2?'':'style="grid-column:1/-1"'}><div class="sh"><h3>Agent trace</h3><div class="stats"><span class="stat"><b>${st.qloo_calls}</b> Qloo calls</span>${st.elapsed_ms!=null?`<span class="stat"><b>${(st.elapsed_ms/1000).toFixed(1)} s</b></span>`:''}<span class="stat">${esc(d.source)}</span></div></div><div class="tl">${d.trace.map(traceRow).join('')}</div></div></div>`;
+  h+=`<div class="note" style="justify-content:center">ⓘ ${esc(d.note||'')}</div>`;
+  $('out').innerHTML=h;
+  requestAnimationFrame(()=>setTimeout(()=>document.querySelectorAll('[data-w]').forEach(e=>e.style.width=e.dataset.w+'%'),60));
+}
+const TOOLC={resolve_entity:['#e7f8f5','#0b8f7f'],destination_affinity:['#efeafe','#5b3fd6'],local_places:['#fff1e6','#d9480f']};
+function traceRow(s){const [bg,fg]=TOOLC[s.tool]||['#f2f0f8','#3b3857'];let det='';
+  if(s.tool==='resolve_entity')det=`“${esc(s.query)}” <span style="color:var(--muted)">(${esc(TL[s.type]||s.type)})</span> → ${s.found?'<span class="ok">matched</span>':'<span class="no">not found</span>'}`;
+  else if(s.tool==='destination_affinity')det=`${s.traveler==='group'?'<b>Whole group</b>':'<b>'+esc(s.traveler)+'</b>'} · ${s.signals} taste signals → ${s.results} destinations${s.filtered?' (same candidate set)':''}`;
+  else if(s.tool==='local_places')det=`<b>${esc(s.traveler)}</b> · ${esc(s.location)} → ${s.results} places`;
+  else det=esc(JSON.stringify(s));
+  return `<div class="tli" style="color:${fg}"><span class="tdot"></span><div><div class="tt"><span class="tool" style="background:${bg};color:${fg}">${esc(s.tool)}</span><span class="ep">GET ${esc(s.endpoint)}</span></div><div class="td">${det}</div></div></div>`}
+function mapSvg(pts){const W=360,H=250,P=40;const lats=pts.map(p=>p.lat),lons=pts.map(p=>p.lon);
+  let a=Math.min(...lons),b=Math.max(...lons),c=Math.min(...lats),e=Math.max(...lats);const k=Math.cos((c+e)/2*Math.PI/180);
+  let dx=Math.max((b-a)*k,0.01),dy=Math.max(e-c,0.01);const s=Math.min((W-2*P)/dx,(H-2*P)/dy);
+  const cx=(a+b)/2,cy=(c+e)/2;const X=lon=>W/2+(lon-cx)*k*s,Y=lat=>H/2-(lat-cy)*s;
+  const barKm=[1,2,5,10,20,50,100,200,500].find(v=>v*s/111>=60)||1000;const barPx=barKm*s/111;
+  let g='';for(let i=1;i<6;i++)g+=`<line x1="${i*W/6}" y1="0" x2="${i*W/6}" y2="${H}" stroke="#d6e1f0" stroke-dasharray="3 5"/>`;for(let i=1;i<4;i++)g+=`<line x1="0" y1="${i*H/4}" x2="${W}" y2="${i*H/4}" stroke="#d6e1f0" stroke-dasharray="3 5"/>`;
+  const route=pts.map(p=>`${X(p.lon).toFixed(1)},${Y(p.lat).toFixed(1)}`).join(' ');
+  return `<div class="map"><svg viewBox="0 0 ${W} ${H}">${g}<polyline points="${route}" fill="none" stroke="#8f86c9" stroke-width="2" stroke-dasharray="5 6" opacity=".7"/>
+   ${(()=>{const boxes=[],pos=[];pts.forEach(p=>{let x=X(p.lon),y=Y(p.lat),k=0;while(pos.some(q=>Math.hypot(q[0]-x,q[1]-y)<30)&&k<8){const an=k*Math.PI/4+Math.PI/6;x=X(p.lon)+32*Math.cos(an);y=Y(p.lat)+32*Math.sin(an);k++}pos.push([x,y])});pos.forEach(q=>boxes.push([q[0]-14,q[1]-14,28,28]));return pts.map((p,i)=>{const [x,y]=pos[i];
+     const lab=esc(p.place.length>20?p.place.slice(0,19)+'…':p.place);const lw=lab.length*6.7+6;let right=x<W-130;
+     let dy=0,ok=false;for(const side of [right,!right]){for(const c of [0,-15,15,-30,30,-45,45]){const bx=side?x+16:x-16-lw,by=y-8+c;
+       if(bx<0||bx+lw>W)continue;if(!boxes.some(b=>bx<b[0]+b[2]&&bx+lw>b[0]&&by<b[1]+b[3]&&by+16>b[1])){dy=c;right=side;ok=true;boxes.push([bx,by,lw,16]);break}}if(ok)break}
+     const lx=right?x+18:x-18;
+     return `<g>${dy?`<line x1="${x}" y1="${y}" x2="${right?lx-3:lx+3}" y2="${y+dy}" stroke="#9aa3c0" stroke-width="1"/>`:''}<circle cx="${x}" cy="${y}" r="16" fill="${col(p.for)}" opacity=".18"/><circle cx="${x}" cy="${y}" r="12" fill="${col(p.for)}" stroke="#fff" stroke-width="2.5"/><text x="${x}" y="${y+4}" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">${p._n}</text><text x="${lx}" y="${y+dy+4}" text-anchor="${right?'start':'end'}" font-size="12" font-weight="650" fill="#3b3857" paint-order="stroke" stroke="#eef3fb" stroke-width="4">${lab}</text></g>`}).join('')})()}
+   <g transform="translate(${P-20},${H-18})"><line x1="0" y1="0" x2="${barPx}" y2="0" stroke="#75718f" stroke-width="2"/><line x1="0" y1="-4" x2="0" y2="4" stroke="#75718f" stroke-width="2"/><line x1="${barPx}" y1="-4" x2="${barPx}" y2="4" stroke="#75718f" stroke-width="2"/><text x="${barPx+8}" y="4" font-size="11" fill="#75718f">${barKm} km</text></g></svg></div>`}
+</script>
+</body>
+</html>

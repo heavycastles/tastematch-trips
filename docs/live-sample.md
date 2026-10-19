@@ -1,7 +1,8 @@
 # Live API sample (sanitized)
 
 Verified **2026-10-13** against `https://hackathon.api.qloo.com` with a hackathon key;
-re-run live on **2026-10-19** with identical rankings, affinities and itinerary.
+re-run live on **2026-10-19** and again on **2026-10-20 ~00:45 MSK** (web UI run used for `docs/screenshots/` and
+`docs/demo-live-draft.mp4`: 13 Qloo calls, ~6.1 s) with identical rankings, affinities and itinerary.
 `source`: `qloo-hackathon-api`. No API key or raw payloads are stored here.
 
 ## Sample group

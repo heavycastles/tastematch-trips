@@ -143,3 +143,31 @@ def test_filter_entities_mock():
     only = qloo.insights("urn:entity:destination", [hits[0]["id"]], 8,
                          filter_entities=[all_dest[0]["id"]])
     assert len(only) == 1 and only[0]["id"] == all_dest[0]["id"]
+
+
+def test_parse_entity_image_and_coords():
+    """Live place shape: properties.images[] + location{lat,lon}; only https image URLs are kept."""
+    place = qloo._parse_entity({
+        "entity_id": "P2", "name": "Playa", "query": {"affinity": 0.8},
+        "location": {"lat": 20.87, "lon": -105.44, "geohash": "9etn8"},
+        "properties": {"images": [{"url": "https://images.qloo.com/i/p2.jpg", "type": "urn:image:place:unknown"}]},
+    })
+    assert place["image"] == "https://images.qloo.com/i/p2.jpg"
+    assert (place["lat"], place["lon"]) == (20.87, -105.44)
+    artist = qloo._parse_entity({"entity_id": "A1", "name": "Band",
+                                 "properties": {"image": {"url": "https://images.qloo.com/i/a1.jpg"}}})
+    assert artist["image"] == "https://images.qloo.com/i/a1.jpg"
+    bare = qloo._parse_entity({"entity_id": "X", "name": "X", "location": {"lat": "bad"},
+                               "properties": {"image": {"url": "javascript:alert(1)"}}})
+    assert bare["image"] is None and bare["lat"] is None and bare["lon"] is None
+
+
+def test_plan_reports_stats_and_matched_detail():
+    r = plan(SAMPLE["travelers"], days=2)
+    assert r["stats"]["qloo_calls"] == len(r["trace"]) > 0
+    assert r["stats"]["elapsed_ms"] >= 0
+    aziz = next(t for t in r["travelers"] if t["label"] == "Aziz")
+    assert [m["name"] for m in aziz["matched_detail"]] == aziz["matched"]
+    assert {m["type"] for m in aziz["matched_detail"]} <= {"movie", "brand"}
+    for item in r["itinerary"]:
+        assert {"image", "description", "lat", "lon"} <= set(item)
