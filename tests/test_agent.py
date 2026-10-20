@@ -171,3 +171,20 @@ def test_plan_reports_stats_and_matched_detail():
     assert {m["type"] for m in aziz["matched_detail"]} <= {"movie", "brand"}
     for item in r["itinerary"]:
         assert {"image", "description", "lat", "lon"} <= set(item)
+
+
+def test_base_url_read_from_env_at_call_time(monkeypatch):
+    seen = []
+
+    def handler(req: httpx.Request):
+        seen.append(str(req.url))
+        return httpx.Response(200, json={"results": []})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: client.get(url, **kw))
+    monkeypatch.setenv("QLOO_API_KEY", "k")
+    monkeypatch.setenv("QLOO_BASE_URL", "https://qloo.example.test/")
+    monkeypatch.delenv("QLOO_FORCE_MOCK", raising=False)
+    qloo._cached_get.cache_clear()
+    qloo.search("Daft Punk", "urn:entity:artist")
+    assert seen and seen[0].startswith("https://qloo.example.test/search")

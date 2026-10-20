@@ -37,6 +37,11 @@ def load_dotenv(path: Path | None = None) -> None:
 BASE = os.getenv("QLOO_BASE_URL", "https://hackathon.api.qloo.com").rstrip("/")
 
 
+def base_url() -> str:
+    """Read QLOO_BASE_URL at call time, so env vars set after import (or by the host) are respected."""
+    return (os.getenv("QLOO_BASE_URL") or BASE).rstrip("/")
+
+
 class QlooError(RuntimeError):
     pass
 
@@ -55,7 +60,7 @@ def _cached_get(path: str, params: tuple, key: str) -> dict:
     last_text, last_code = "", 0
     for attempt in range(6):
         r = httpx.get(
-            f"{BASE}{path}",
+            f"{base_url()}{path}",
             params=list(params),
             headers={"X-Api-Key": key},
             timeout=timeout,

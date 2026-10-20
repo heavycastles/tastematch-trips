@@ -1,0 +1,33 @@
+# Vercel upload allow-list: only what the FastAPI function needs at runtime.
+# Entry point is app/main.py (Vercel zero-config), static UI in app/static/.
+/*
+!/app
+!/requirements.txt
+!/VERSION
+!/vercel.json
+!/.python-version
+!/README.md
+!/LICENSE
+
+# Never upload secrets, even if something above is widened later.
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Local tooling and caches
+.git
+.venv
+venv
+__pycache__
+**/__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+
+# Heavy media and non-runtime folders
+*.mp4
+docs/
+tests/
+n8n/
+scripts/

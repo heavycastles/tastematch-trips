@@ -80,7 +80,7 @@ retry on HTTP 429. Without `QLOO_API_KEY` a built-in mock taste graph is used (`
 ```bash
 cp .env.example .env               # QLOO_API_KEY from the hackathon key form
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q                # 15 tests (offline mock + live smoke if key present)
+.venv/bin/pytest -q                # 17 tests (offline mock + live smoke if key present)
 .venv/bin/python serve.py          # loads .env; http://localhost:8080 → "Load sample" → "Plan our trip"
 docker compose up --build          # app :8080 + n8n :5678
 ```
@@ -128,6 +128,27 @@ docker build -t tastematch-trips .
 docker run --rm -p 8080:8080 -e QLOO_BASE_URL=https://hackathon.api.qloo.com tastematch-trips
 # curl http://localhost:8080/healthz   # qloo: mock without key
 ```
+
+## Deploy demo (Vercel)
+
+The same FastAPI app also runs on Vercel (Hobby plan is enough) as a single Python function.
+Vercel picks up `app/main.py` automatically; `vercel.json` only sets the function time limit to 60 s
+(a live plan makes ~13 Qloo calls and usually takes about 6 s). Python 3.13 is pinned in `.python-version`.
+`.vercelignore` is an allow-list: only `app/`, `requirements.txt`, `VERSION` and a few small files are uploaded,
+never `.env`, tests, docs or videos.
+
+```bash
+npm i -g vercel
+vercel login
+vercel link                                   # create/link the project once
+# set the key from your local .env without echoing it (never commit it)
+grep '^QLOO_API_KEY=' .env | cut -d= -f2- | tr -d '\n' | vercel env add QLOO_API_KEY --environment production
+vercel deploy --prod
+curl https://<your-project>.vercel.app/healthz   # {"ok":true,"qloo":"live"}
+```
+
+`QLOO_BASE_URL` defaults to `https://hackathon.api.qloo.com`, so it doesn't need to be set.
+Without `QLOO_API_KEY` the deployed app falls back to the offline mock graph.
 
 ## License
 
