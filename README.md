@@ -1,6 +1,6 @@
 # TasteMatch Trips — a group-travel agent that's fair to everyone's taste
 
-**Qloo Agentic Hackathon** · [MIT License](LICENSE) · Built by heavycastles
+**Qloo Agentic Hackathon** · [![CI](https://github.com/heavycastles/tastematch-trips/actions/workflows/ci.yml/badge.svg)](https://github.com/heavycastles/tastematch-trips/actions/workflows/ci.yml) · [MIT License](LICENSE) · Built by heavycastles
 
 Group trips fail on taste: one friend wants anime museums, another techno clubs, the third street food.
 Trip planners optimise for "the group average" and someone always loses. **TasteMatch Trips** asks each
@@ -103,22 +103,15 @@ POST /api/plan
 {"travelers":[{"label":"Aziz","likes":[{"name":"Spirited Away","type":"movie"}]}],"days":2}
 ```
 
-## Submission pack (local)
+## Submission pack
 
 - Devpost write-up: [`SUBMISSION.md`](SUBMISSION.md)
 - Demo script: [`docs/video-script.md`](docs/video-script.md)
 - Slides PDF: [`docs/slides.pdf`](docs/slides.pdf) · cover: [`docs/cover.png`](docs/cover.png)
-- **Live demo video draft:** [`docs/demo-live-draft.mp4`](docs/demo-live-draft.mp4) (1:59, real screen recording of the live app; script [`docs/video-script-live.md`](docs/video-script-live.md)) — pending owner review
+- **Live demo video draft:** [`docs/demo-live-draft.mp4`](docs/demo-live-draft.mp4) (1:59, real screen recording of the live app; script [`docs/video-script-live.md`](docs/video-script-live.md))
 - Older draft (slides + narration): [`docs/demo-draft.mp4`](docs/demo-draft.mp4)
 - Screenshots of the live run: [`docs/screenshots/`](docs/screenshots/)
 
-
-## Preflight / publish (local)
-
-```bash
-./scripts/preflight_submit.sh
-# VISIBILITY=private ./scripts/publish_github.sh   # gh as heavycastles; wait for user OK
-```
 
 ## Deploy demo (Render)
 
@@ -126,17 +119,16 @@ One-click free-tier demo. Config: `render.yaml` (Docker, Oregon, health `/health
 `QLOO_API_KEY` is prompted by Render (`sync: false`) — never put the key in git.
 `QLOO_BASE_URL` defaults to `https://hackathon.api.qloo.com`. Without a key the app serves the offline mock graph.
 
-1. Push this repo public (user approval required), e.g. `heavycastles/tastematch-qloo`.
-2. Open [Render Blueprint](https://dashboard.render.com/select-repo?type=blueprint), connect the repo, Apply.
-3. Paste the hackathon API key when Render asks for `QLOO_API_KEY`.
-4. Demo URL → paste into `SUBMISSION.md` Links (currently TODO pending Render).
+1. Open [Render Blueprint](https://dashboard.render.com/select-repo?type=blueprint), connect `heavycastles/tastematch-trips`, Apply.
+2. Paste the hackathon API key when Render asks for `QLOO_API_KEY`.
+3. Open the service URL, tap **Load sample** → **Plan our trip**.
 
 ```bash
-docker build -t tastematch-qloo .
-docker run --rm -p 8080:8080 -e QLOO_BASE_URL=https://hackathon.api.qloo.com tastematch-qloo
+docker build -t tastematch-trips .
+docker run --rm -p 8080:8080 -e QLOO_BASE_URL=https://hackathon.api.qloo.com tastematch-trips
 # curl http://localhost:8080/healthz   # qloo: mock without key
 ```
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE) (Copyright (c) 2026 heavycastles). GitHub detects it and shows "MIT license" in the repo About sidebar once the repo is public.
+MIT — see [`LICENSE`](LICENSE) (Copyright (c) 2026 heavycastles).

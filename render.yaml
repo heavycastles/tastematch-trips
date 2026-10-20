@@ -3,7 +3,7 @@
 # Set QLOO_API_KEY in the Render dashboard when prompted (never commit the key).
 services:
   - type: web
-    name: tastematch-qloo
+    name: tastematch-trips
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .

@@ -88,10 +88,10 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 
 Python, FastAPI, Qloo Taste AI (`/search`, `/v2/insights`), httpx, n8n, Docker, pytest
 
-## Links (local pack ready; publish TBD)
+## Links
 
-- Functional demo URL: TODO pending Render Blueprint (`render.yaml` free tier; set `QLOO_API_KEY` in dashboard — see README Deploy demo)
-- Public repo with MIT license: TODO (do not push until user approves)
+- Functional demo: deployable with one click via Render Blueprint (`render.yaml`; see README → Deploy demo)
+- Public repo (MIT): https://github.com/heavycastles/tastematch-trips
 - Video: draft at `docs/demo-draft.mp4` (script `docs/video-script.md`, narration `docs/video-narration.txt`)
 - Slides PDF: `docs/slides.pdf` · Cover: `docs/cover.png`
 - Live sample (sanitized): `docs/live-sample.md`
