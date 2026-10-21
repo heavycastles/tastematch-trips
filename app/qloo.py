@@ -43,7 +43,11 @@ def base_url() -> str:
 
 
 class QlooError(RuntimeError):
-    pass
+    """Upstream failure. ``kind`` is one of rate_limited, qloo_timeout, bad_location, upstream."""
+
+    def __init__(self, message: str, kind: str = "upstream", status: int = 0):
+        super().__init__(message)
+        self.kind, self.status = kind, status
 
 
 def live() -> bool:
@@ -57,22 +61,31 @@ def _get(path: str, params: tuple) -> dict:
 @lru_cache(maxsize=512)
 def _cached_get(path: str, params: tuple, key: str) -> dict:
     timeout = float(os.getenv("QLOO_TIMEOUT", "20"))
-    last_text, last_code = "", 0
-    for attempt in range(6):
-        r = httpx.get(
-            f"{base_url()}{path}",
-            params=list(params),
-            headers={"X-Api-Key": key},
-            timeout=timeout,
-        )
+    budget = float(os.getenv("QLOO_RETRY_BUDGET", "12"))  # max seconds spent backing off on 429s
+    slept, attempt = 0.0, 0
+    while True:
+        try:
+            r = httpx.get(f"{base_url()}{path}", params=list(params), headers={"X-Api-Key": key}, timeout=timeout)
+        except httpx.TimeoutException as e:
+            raise QlooError(f"Qloo {path} timed out after {timeout:.0f}s", "qloo_timeout") from e
+        except httpx.HTTPError as e:
+            raise QlooError(f"Qloo {path} unreachable: {type(e).__name__}", "upstream") from e
         if r.status_code == 429:
-            last_text, last_code = r.text[:200], 429
-            time.sleep(min(16.0, 0.8 * (2**attempt)))
+            try:
+                wait = float(r.headers.get("retry-after", ""))
+            except ValueError:
+                wait = 0.8 * (2**attempt)
+            wait = min(wait, budget - slept)
+            if wait <= 0:
+                raise QlooError(f"Qloo {path} 429: {r.text[:200] or 'Rate limit exceeded'}", "rate_limited", 429)
+            time.sleep(wait)
+            slept += wait
+            attempt += 1
             continue
         if r.status_code >= 400:
-            raise QlooError(f"Qloo {path} {r.status_code}: {r.text[:200]}")
+            kind = "bad_location" if r.status_code == 400 and "location" in r.text else "upstream"
+            raise QlooError(f"Qloo {path} {r.status_code}: {r.text[:200]}", kind, r.status_code)
         return r.json()
-    raise QlooError(f"Qloo {path} {last_code}: {last_text or 'Rate limit exceeded'}")
 
 
 def _affinity(entity: dict) -> float:
@@ -102,13 +115,18 @@ def _tag_names(entity: dict) -> list[str]:
     return out[:6]
 
 
+CITY_STATES = {"HK", "MO", "SG", "MC", "VA", "SM", "LU", "MT", "AD", "LI", "BH"}
+
+
 def _destination_label(entity: dict) -> str:
     """Disambiguate destinations (e.g. Portland, Maine) using geocode when present."""
     name = (entity.get("name") or "").strip() or "Unknown"
     geo = (entity.get("properties") or {}).get("geocode") or {}
     region = (geo.get("admin1_region") or "").strip()
     country = (geo.get("country_code") or "").strip()
-    if region and region.lower() not in name.lower():
+    if country.upper() in CITY_STATES:
+        return name  # "Hong Kong, Central and Western" / "Singapore, SG" read as noise
+    if region and region.lower() not in name.lower() and region.lower()[:4] != name.lower()[:4]:
         return f"{name}, {region}"
     if country and country.upper() not in name.upper() and not region:
         return f"{name}, {country}"
@@ -258,6 +276,11 @@ class _Mock:
 
     def search(self, query, etype, take):
         k = query.strip().lower()
+        if etype == "urn:entity:destination":
+            hit = next((d for d in self.DESTINATIONS if d.lower() == k.split(",")[0].strip()), None)
+            if not hit:
+                return []
+            return [{"id": "mock:" + hit.lower().replace(" ", "_"), "name": hit, "type": etype, "image": None}]
         if k not in self.LIKES:
             return []
         return [{"id": "mock:" + k.replace(" ", "_"), "name": query.strip(), "type": etype or "urn:entity:movie",

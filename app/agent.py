@@ -67,6 +67,16 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
         return {"error": "none_resolved", "unresolved": unresolved,
                 "ask": "I couldn't match any of those tastes in Qloo. Try a well-known movie, artist or brand."}
 
+    chosen_id = None
+    if destination:
+        hit = qloo.search(destination, "urn:entity:destination", 1)
+        tr.add("resolve_destination", endpoint="/search", query=destination, type="destination", found=bool(hit))
+        if not hit:
+            return {"error": "destination_not_found", "unresolved": unresolved,
+                    "ask": f"Qloo doesn't know \"{destination}\" as a destination. Try a city name such as "
+                           "Lisbon or Tokyo, or leave the field empty and let the agent pick."}
+        chosen_id = hit[0]["id"]
+
     # Prefer well-known destinations on the live API (hackathon graph skews to tiny towns otherwise).
     dest_kw = {"popularity_min": 0.55} if qloo.live() else {}
     group = qloo.insights("urn:entity:destination", all_ids, 15, **dest_kw)
@@ -77,6 +87,9 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
         if e.get("location_query"):
             loc_by_name[e["name"]] = e["location_query"]
     candidate_ids = [e["id"] for e in group if e.get("id")]
+    if chosen_id and chosen_id not in candidate_ids:
+        candidate_ids.append(chosen_id)
+    name_by_id = {e["id"]: e["name"] for e in group if e.get("id")}
 
     # Score the SAME candidate set per traveler via filter.entities (true affinities, not top-N overlap).
     per: dict[str, dict[str, float]] = {}
@@ -97,9 +110,21 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
                signals=len(ids), results=len(res), filtered=bool(candidate_ids and qloo.live()))
         per[t["label"]] = {e["name"]: e["affinity"] for e in res}
         for e in res:
+            if e.get("id"):
+                name_by_id.setdefault(e["id"], e["name"])
             if e.get("location_query"):
                 loc_by_name[e["name"]] = e["location_query"]
     ranking = fairness(per, group)
+    chosen = None
+    if chosen_id:
+        cname = name_by_id.get(chosen_id)
+        chosen = next((dict(r) for r in ranking if r["name"] == cname), None)
+        if chosen is None:  # Qloo returned no affinity at all for the chosen city
+            chosen = {"name": cname or destination, "group_fit": 0.0, "least_happy": None,
+                      "per_traveler": {t["label"]: 0.0 for t in travelers}}
+        chosen["name"] = destination
+        chosen["chosen"] = True
+        ranking = [r for r in ranking if r["name"] != cname]
     city = destination or (ranking[0]["name"] if ranking else None)
     # Places need a location query string; prefer geocode city over neighborhood labels.
     place_location = destination or (loc_by_name.get(city) if city else None) or city
@@ -107,9 +132,21 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
     pools: dict[str, list[dict]] = {}
     for t in travelers:
         ids = [e["id"] for e in t["entities"]]
-        pools[t["label"]] = (
-            qloo.insights("urn:entity:place", ids, 8, location=place_location) if ids and place_location else []
-        )
+        try:
+            pools[t["label"]] = (
+                qloo.insights("urn:entity:place", ids, 8, location=place_location) if ids and place_location else []
+            )
+        except qloo.QlooError as e:
+            if e.kind != "bad_location":
+                raise
+            alt = loc_by_name.get(name_by_id.get(chosen_id, "")) if chosen_id else None
+            if alt and alt != place_location:
+                place_location = alt
+                pools[t["label"]] = qloo.insights("urn:entity:place", ids, 8, location=place_location)
+            else:
+                return {"error": "destination_not_found", "unresolved": unresolved,
+                        "ask": f"Qloo has no local venue data for \"{place_location}\". Try a nearby larger city, "
+                               "or leave the destination empty."}
         tr.add("local_places", endpoint="/v2/insights", filter_type="place", traveler=t["label"],
                location=place_location, results=len(pools[t["label"]]))
 
@@ -133,7 +170,9 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
                               "why": f"High Qloo affinity ({pick['affinity']:.2f}) with {lbl}'s tastes: {likes}",
                               "tags": pick.get("tags", [])})
     fair = {lbl: sum(1 for x in itinerary if x["for"] == lbl) for lbl in labels}
-    result = {"destination": city, "ranking": ranking[:6], "itinerary": itinerary, "fair_share": fair,
+    result = {"destination": city, "days": max(1, min(days, 5)),
+              "mode": "chosen" if chosen else "best_match", "chosen": chosen,
+              "ranking": ranking[:6], "itinerary": itinerary, "fair_share": fair,
               "unresolved": unresolved, "trace": tr.steps,
               "travelers": [{"label": t["label"], "matched": [e["name"] for e in t["entities"]],
                              "matched_detail": [{"name": e["name"], "type": (e.get("type") or "").rsplit(":", 1)[-1],
@@ -148,10 +187,18 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
 
 def narrate(r: dict) -> str:
     top = r["ranking"][0] if r["ranking"] else None
-    base = (f"{r['destination']} is the best shared match"
-            + (f" (group fit {top['group_fit']}; least-matched traveler: {top['least_happy']})" if top else "")
-            + ". Everyone gets their own picks: "
-            + ", ".join(f"{k} ×{v}" for k, v in r["fair_share"].items()) + ".")
+    share = ", ".join(f"{k} ×{v}" for k, v in r["fair_share"].items())
+    ch = r.get("chosen")
+    if ch:
+        base = (f"{r['destination']} (your pick) has a group fit of {ch['group_fit']}"
+                + (f"; least-matched traveler: {ch['least_happy']}" if ch.get("least_happy") else "") + "."
+                + (f" Qloo's best shared match for this group would be {top['name']} ({top['group_fit']})."
+                   if top else "")
+                + (f" Everyone still gets their own picks: {share}." if r["itinerary"] else ""))
+    else:
+        base = (f"{r['destination']} is the best shared match"
+                + (f" (group fit {top['group_fit']}; least-matched traveler: {top['least_happy']})" if top else "")
+                + (f". Everyone gets their own picks: {share}." if r["itinerary"] else "."))
     url, key = os.getenv("LLM_BASE_URL"), os.getenv("LLM_API_KEY")
     if not (url and key):
         return base

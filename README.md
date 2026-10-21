@@ -7,6 +7,9 @@ Trip planners optimise for "the group average" and someone always loses. **Taste
 traveler for 2–3 cultural favourites (movies, artists, brands, shows — **nicknames only, no personal data**)
 and runs a fairness-aware agent over the **Qloo Taste AI** API.
 
+**Live demo:** https://tastematch-trips.vercel.app — no login. Tap **Load sample**, or enter your own group
+(1–6 nicknames, up to 3 favourites each, 1–5 days, optionally your own destination) and press **Plan our trip**.
+
 ## What it does
 
 1. **resolve_entity** — `GET /search` turns each favourite into a Qloo entity (unmatched ones are reported, never guessed).
@@ -17,7 +20,16 @@ and runs a fairness-aware agent over the **Qloo Taste AI** API.
    friends and bores the third ranks below one everyone likes. The "least-matched traveler" is shown.
 4. **local_places** — `GET /v2/insights?filter.type=urn:entity:place&filter.location.query=<City, Region>` per traveler.
 5. **itinerary** — round-robin slots so everyone gets their own picks; each pick cites the Qloo affinity and
-   the favourites it came from (provenance). Optional LLM writes the pitch from those facts only.
+   the favourites it came from (provenance). The pitch is a deterministic summary of those facts; if
+   `LLM_BASE_URL`/`LLM_API_KEY` are set, an LLM rewrites it from the same facts (not enabled on the hosted demo).
+
+**Your own destination:** type a city (e.g. *Lisbon*) and the agent resolves it with `GET /search`
+(`types=urn:entity:destination`), scores it for every traveler alongside Qloo's own candidates, and shows
+"Your destination" with its group fit next to Qloo's top pick — instead of pretending your city was the best match.
+
+**Honest failure modes:** unknown favourites are listed and skipped; an unknown destination, duplicate nicknames
+or an empty form get a plain-language message; Qloo rate limits (429, bounded back-off ≤ 12 s, honours
+`Retry-After`) and timeouts return 503/504 with a "Try again" button — never a raw stack trace or upstream payload.
 
 The web UI shows the best shared match (group-fit ring, per-traveler fit, matched favourites with Qloo images),
 the fairness ranking, a photo itinerary with "for whom" tags and provenance, a map of the stops (Qloo
@@ -65,7 +77,7 @@ FastAPI  POST /api/plan  ──► plan()                         app/agent.py
                               ├─ fairness()  mean + min + group affinity
                               ├─ local_places  /v2/insights place + location
                               ├─ itinerary  round-robin fair share + provenance
-                              └─ narrate()  optional LLM from Qloo facts only
+                              └─ narrate()  template from Qloo facts (optional LLM rewrite)
         │
         ▼
 Web UI (/)  match card · fairness ranking · photo itinerary · map · agent trace · live|mock badge
@@ -73,14 +85,14 @@ n8n/telegram-group-trip.json  → Telegram group bot
 ```
 
 Qloo client: `app/qloo.py` — base `https://hackathon.api.qloo.com`, header `X-Api-Key`, in-process LRU cache,
-retry on HTTP 429. Without `QLOO_API_KEY` a built-in mock taste graph is used (`source: mock`).
+bounded retry on HTTP 429, typed errors (rate limit / timeout / bad location / upstream). Without `QLOO_API_KEY` a built-in mock taste graph is used (`source: mock`).
 
 ## Run
 
 ```bash
 cp .env.example .env               # QLOO_API_KEY from the hackathon key form
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q                # 17 tests (offline mock + live smoke if key present)
+.venv/bin/pytest -q                # 29 tests (offline mock + live smoke if key present)
 .venv/bin/python serve.py          # loads .env; http://localhost:8080 → "Load sample" → "Plan our trip"
 docker compose up --build          # app :8080 + n8n :5678
 ```

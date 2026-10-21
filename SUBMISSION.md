@@ -31,7 +31,8 @@ Each traveler names 2–3 cultural favourites. TasteMatch Trips:
    the least-matched traveler.
 4. Pulls local places per traveler (`filter.type=urn:entity:place` + `filter.location.query`).
 5. Builds a round-robin itinerary so everyone gets equal slots, each pick citing Qloo affinity and source favourites.
-6. Optionally drafts a short narrative from those facts only (no hallucinations beyond the plan).
+6. Writes a short narrative from those facts only (deterministic template; an LLM rewrite is optional and off in the hosted demo).
+7. If the group names its own destination, resolves it in Qloo and scores it for every traveler next to Qloo's top pick.
 
 The web UI shows the best shared match (group-fit ring, per-traveler fit), the fairness ranking, a photo itinerary
 with provenance, a map of the stops and the full agent trace (every Qloo call, count and time). Screenshots of a
@@ -49,7 +50,7 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 - **Qloo client** (`app/qloo.py`): hackathon base URL, `X-Api-Key`, in-process LRU cache, 429 retries,
   destination labels with geocode disambiguation, offline mock graph for CI and demos without a key.
 - **n8n** Telegram group workflow; **Docker Compose** for app + n8n.
-- **Tests:** 15 pytest cases covering fairness math, mock planning, API routes, live response shapes, and optional live smoke.
+- **Tests:** 29 pytest cases covering fairness math, mock planning, chosen destinations, friendly errors (422/503/504), bounded 429 retries, API routes, live response shapes, and optional live smoke.
 
 ## Challenges we ran into
 
@@ -67,7 +68,7 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 - Fairness ranking that surfaces the least-matched traveler instead of hiding them.
 - Provenance on every itinerary slot (affinity + which favourites drove the pick).
 - Full agent trace in the UI so judges can see every Qloo call.
-- 15 passing tests; works offline via mock when the key is absent.
+- 29 passing tests; works offline via mock when the key is absent.
 
 ## What we learned
 
@@ -90,7 +91,7 @@ Python, FastAPI, Qloo Taste AI (`/search`, `/v2/insights`), httpx, n8n, Docker, 
 
 ## Links
 
-- Functional demo: deployable with one click via Render Blueprint (`render.yaml`; see README → Deploy demo)
+- Functional demo: https://tastematch-trips.vercel.app (Vercel; Render Blueprint `render.yaml` also included)
 - Public repo (MIT): https://github.com/heavycastles/tastematch-trips
 - Video: draft at `docs/demo-draft.mp4` (script `docs/video-script.md`, narration `docs/video-narration.txt`)
 - Slides PDF: `docs/slides.pdf` · Cover: `docs/cover.png`
