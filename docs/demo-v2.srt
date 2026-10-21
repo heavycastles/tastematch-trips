@@ -1,0 +1,187 @@
+1
+00:00:00,170 --> 00:00:01,312
+Three friends.
+
+2
+00:00:01,312 --> 00:00:03,117
+Three totally different tastes.
+
+3
+00:00:03,117 --> 00:00:04,124
+One trip.
+
+4
+00:00:04,124 --> 00:00:05,618
+So who gets their way?
+
+5
+00:00:05,618 --> 00:00:07,990
+With TasteMatch Trips, everyone does.
+
+6
+00:00:08,450 --> 00:00:10,747
+Group trips usually get planned for the
+
+7
+00:00:10,747 --> 00:00:12,867
+majority, or for the loudest friend.
+
+8
+00:00:12,867 --> 00:00:15,263
+And someone always ends up dragged along.
+
+9
+00:00:15,350 --> 00:00:16,842
+This is the live app.
+
+10
+00:00:16,842 --> 00:00:18,420
+Each friend adds a nickname
+
+11
+00:00:18,420 --> 00:00:19,999
+and a couple of favourites.
+
+12
+00:00:19,999 --> 00:00:22,950
+Aziz loves Interstellar and Patagonia.
+
+13
+00:00:22,950 --> 00:00:25,867
+Malika, Daft Punk and Wes Anderson.
+
+14
+00:00:25,867 --> 00:00:29,040
+Rustam, Anthony Bourdain and Chef's Table.
+
+15
+00:00:29,817 --> 00:00:31,792
+One click, and the agent goes
+
+16
+00:00:31,792 --> 00:00:33,632
+to work on Qloo's live API.
+
+17
+00:00:33,632 --> 00:00:35,588
+Thirteen calls, about a second.
+
+18
+00:00:36,183 --> 00:00:38,193
+Sayulita, Mexico.
+
+19
+00:00:38,193 --> 00:00:39,987
+Group fit: eighty.
+
+20
+00:00:39,987 --> 00:00:42,664
+Malika is at ninety percent, and even
+
+21
+00:00:42,664 --> 00:00:46,352
+the least-matched friend, Rustam, gets seventy-six.
+
+22
+00:00:47,050 --> 00:00:49,374
+Every city is ranked by fairness: forty
+
+23
+00:00:49,374 --> 00:00:52,116
+percent average, forty percent the least happy
+
+24
+00:00:52,116 --> 00:00:54,500
+traveler, twenty percent group affinity.
+
+25
+00:00:55,217 --> 00:00:58,373
+Then a two-day plan built from Qloo's local places.
+
+26
+00:00:58,373 --> 00:01:00,874
+It's shared round-robin, so everyone gets two
+
+27
+00:01:00,874 --> 00:01:02,763
+picks of their own, and every stop
+
+28
+00:01:02,763 --> 00:01:04,542
+shows the Qloo signal behind it.
+
+29
+00:01:05,250 --> 00:01:07,398
+All six stops on one map, plus a
+
+30
+00:01:07,398 --> 00:01:10,084
+trace of every Qloo call the agent made.
+
+31
+00:01:10,983 --> 00:01:12,599
+Already have a city in mind?
+
+32
+00:01:12,599 --> 00:01:13,710
+Type Lisbon.
+
+33
+00:01:13,710 --> 00:01:16,162
+The agent finds it in Qloo and scores it
+
+34
+00:01:16,162 --> 00:01:19,104
+for every traveler, with the same taste signals.
+
+35
+00:01:19,817 --> 00:01:22,511
+Lisbon gets sixty-five, against Qloo's
+
+36
+00:01:22,511 --> 00:01:24,639
+top pick, Sayulita, at eighty.
+
+37
+00:01:24,639 --> 00:01:27,232
+Now the group can decide with real numbers.
+
+38
+00:01:28,250 --> 00:01:31,024
+Under the hood, it's the Qloo Insights API.
+
+39
+00:01:31,024 --> 00:01:34,149
+Search turns each favourite into a Qloo entity.
+
+40
+00:01:34,149 --> 00:01:36,726
+Destination insights score cities for the whole
+
+41
+00:01:36,726 --> 00:01:39,194
+group, and filter dot entities re-scores that
+
+42
+00:01:39,194 --> 00:01:41,278
+exact candidate set for each traveler.
+
+43
+00:01:41,278 --> 00:01:45,618
+Then place insights, filtered by location, fill the itinerary.
+
+44
+00:01:46,350 --> 00:01:47,758
+TasteMatch Trips.
+
+45
+00:01:47,758 --> 00:01:49,737
+One trip, everyone's taste.
+
+46
+00:01:49,737 --> 00:01:50,994
+Try it live, and grab
+
+47
+00:01:50,994 --> 00:01:52,850
+the open-source code on GitHub.

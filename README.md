@@ -120,7 +120,8 @@ POST /api/plan
 - Devpost write-up: [`SUBMISSION.md`](SUBMISSION.md)
 - Demo script: [`docs/video-script.md`](docs/video-script.md)
 - Slides PDF: [`docs/slides.pdf`](docs/slides.pdf) · cover: [`docs/cover.png`](docs/cover.png)
-- **Live demo video draft:** [`docs/demo-live-draft.mp4`](docs/demo-live-draft.mp4) (1:59, real screen recording of the live app; script [`docs/video-script-live.md`](docs/video-script-live.md))
+- **Demo video:** [`docs/demo-v2.mp4`](docs/demo-v2.mp4) (1:54, screen recording of the hosted demo at tastematch-trips.vercel.app, incl. the own-destination flow; script [`docs/video-script-v2.md`](docs/video-script-v2.md), subtitles [`docs/demo-v2.srt`](docs/demo-v2.srt))
+- Earlier live draft: [`docs/demo-live-draft.mp4`](docs/demo-live-draft.mp4) (1:59, script [`docs/video-script-live.md`](docs/video-script-live.md))
 - Older draft (slides + narration): [`docs/demo-draft.mp4`](docs/demo-draft.mp4)
 - Screenshots of the live run: [`docs/screenshots/`](docs/screenshots/)
 

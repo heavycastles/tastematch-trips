@@ -36,7 +36,7 @@ Each traveler names 2–3 cultural favourites. TasteMatch Trips:
 
 The web UI shows the best shared match (group-fit ring, per-traveler fit), the fairness ranking, a photo itinerary
 with provenance, a map of the stops and the full agent trace (every Qloo call, count and time). Screenshots of a
-live run: `docs/screenshots/`; live demo video draft: `docs/demo-live-draft.mp4`. An n8n workflow
+live run: `docs/screenshots/`; demo video: `docs/demo-v2.mp4` (hosted demo, 1:54). An n8n workflow
 (`n8n/telegram-group-trip.json`) can post the plan into a Telegram group.
 
 **Live verification (13 Oct 2026)** against `https://hackathon.api.qloo.com`: sample trio Aziz / Malika / Rustam
@@ -93,6 +93,6 @@ Python, FastAPI, Qloo Taste AI (`/search`, `/v2/insights`), httpx, n8n, Docker, 
 
 - Functional demo: https://tastematch-trips.vercel.app (Vercel; Render Blueprint `render.yaml` also included)
 - Public repo (MIT): https://github.com/heavycastles/tastematch-trips
-- Video: draft at `docs/demo-draft.mp4` (script `docs/video-script.md`, narration `docs/video-narration.txt`)
+- Video: `docs/demo-v2.mp4` (1:54, script `docs/video-script-v2.md`, subtitles `docs/demo-v2.srt`); older drafts `docs/demo-live-draft.mp4`, `docs/demo-draft.mp4`
 - Slides PDF: `docs/slides.pdf` · Cover: `docs/cover.png`
 - Live sample (sanitized): `docs/live-sample.md`
