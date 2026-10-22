@@ -176,7 +176,7 @@ main.wrap{display:grid;grid-template-columns:400px 1fr;gap:24px;margin-top:-54px
 .two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 .map{border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#eef3fb,#e6eef9);border:1px solid var(--line)}
 .map svg{display:block;width:100%;height:auto}
-.slist{margin-top:12px;display:grid;gap:6px}.slist div{display:flex;align-items:center;gap:9px;font-size:12.5px}.sn{width:20px;height:20px;border-radius:50%;color:#fff;font-weight:800;font-size:11px;display:grid;place-items:center;flex:none}.sp{font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sd{color:var(--muted);font-size:12px;text-transform:capitalize}
+.slist{margin-top:12px;display:grid;gap:6px;grid-template-columns:minmax(0,1fr)}.slist div{display:flex;align-items:center;gap:9px;font-size:12.5px}.sn{width:20px;height:20px;border-radius:50%;color:#fff;font-weight:800;font-size:11px;display:grid;place-items:center;flex:none}.sp{font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sd{color:var(--muted);font-size:12px;text-transform:capitalize;flex:none;white-space:nowrap}
 .legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--ink2)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
@@ -193,9 +193,33 @@ main.wrap{display:grid;grid-template-columns:400px 1fr;gap:24px;margin-top:-54px
 .ep{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--muted)}
 .td{font-size:12.5px;color:var(--ink2);margin-top:2px}
 .td .ok{color:var(--ok);font-weight:700}.td .no{color:#e03131;font-weight:700}
+/* group scores on stops */
+.gs{display:flex;gap:4px;flex-wrap:wrap}
+.gsc{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:650;color:var(--ink2);background:#f7f6fb;border-radius:999px;padding:2px 7px 2px 3px}
+.gsc i{width:12px;height:12px;border-radius:50%;display:inline-block}
+.gsc.ownr{background:#fff;box-shadow:inset 0 0 0 1.5px currentColor}
+/* fairness self-check */
+.fc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px}
+.two>*,.fc>*{min-width:0}
+.fcr{display:grid;grid-template-columns:90px 1fr 46px;gap:10px;align-items:center;margin:9px 0;font-size:13px}
+.fcr b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fcr .bb{height:10px;background:#f1eff7;border-radius:9px;overflow:hidden}.fcr .bb div{height:100%;border-radius:9px;transition:width 1s cubic-bezier(.2,.8,.2,1)}
+.fcr span{text-align:right;font-weight:750;font-variant-numeric:tabular-nums}
+.fcr small{grid-column:2/4;color:var(--muted);font-size:11.5px;margin-top:-6px}
+.verdict{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:700}
+.verdict.ok{background:#e6f9f2;color:#0b7a5a}.verdict.rev{background:#fff4e0;color:#8a5a00}
+.dec{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+.dec li{display:grid;grid-template-columns:26px 1fr;gap:10px;font-size:13px;color:var(--ink2);align-items:start}
+.dec .di{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;background:#f1eefe;color:var(--violet)}
+.dec b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:1px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.abtn{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.12);color:#fff;border-radius:11px;padding:8px 13px;font-weight:650;font-size:13px;cursor:pointer}
+.abtn:hover{background:rgba(255,255,255,.2)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;font-size:13px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;z-index:9;max-width:calc(100vw - 32px)}
+.toast.on{opacity:1;transform:translateX(-50%)}
 footer{color:var(--muted);font-size:12px;text-align:center;padding:0 0 34px}
 main.wrap>*{min-width:0}.lbl,.like input,#dest{width:100%;min-width:0}
-@media(max-width:1060px){main.wrap{grid-template-columns:minmax(0,1fr)}.panel{position:static}.stops{grid-template-columns:1fr 1fr}.two{grid-template-columns:1fr}}
+@media(max-width:1060px){main.wrap{grid-template-columns:minmax(0,1fr)}.panel{position:static}.stops{grid-template-columns:1fr 1fr}.two,.fc{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:640px){.wrap{padding:0 14px}.panel{padding:16px}.hero h1{font-size:32px;margin-top:22px}.badges .pill{font-size:11.5px;padding:6px 10px}.like select{width:96px}.opts{grid-template-columns:1fr}.errc{padding:20px 18px}.stops,.steps3{grid-template-columns:1fr}.rk{grid-template-columns:28px 1fr}.rk .gf,.rk .pt{grid-column:2}.dtop{flex-direction:column}.share{min-width:0;width:100%}}
 </style>
 </head>
@@ -235,6 +259,7 @@ main.wrap>*{min-width:0}.lbl,.like input,#dest{width:100%;min-width:0}
   </section>
   <section id="out"></section>
 </main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <footer>TasteMatch Trips · built on the Qloo Taste AI hackathon API · MIT license</footer>
 
 <script>
@@ -274,11 +299,11 @@ function emptyState(){$('out').innerHTML=`<div class="card empty">
  <div class="s3"><div class="num">3</div><b>Share the days</b><span>Local places from Qloo, round-robin so everyone gets their picks.</span></div></div></div>`}
 emptyState();
 /* loading */
-const LSTEPS=[['Resolving favourites in Qloo','/search'],['Scoring destinations for the whole group','/v2/insights'],['Scoring the same cities for each traveler','filter.entities'],['Ranking by fairness','40·40·20'],['Finding local places for everyone','/v2/insights place']];
+const LSTEPS=[['Resolving favourites in Qloo','/search'],['Scoring destinations for the whole group','/v2/insights'],['Scoring the same cities for each traveler','filter.entities'],['Ranking by fairness','40·40·20'],['Finding local places for everyone','/v2/insights place'],['Scoring every stop for every traveler','filter.entities'],['Self-check: is the whole trip fair?','re-plan if not']];
 let ltimer;
 function loading(){$('out').innerHTML=`<div class="card loading"><div class="sh"><h3>Agent at work</h3><span class="sub">Calling Qloo Taste AI…</span></div>${LSTEPS.map(([a,b])=>`<div class="lstep"><span class="ic"></span><span>${a}</span><code>${b}</code></div>`).join('')}</div>`;
   const els=[...document.querySelectorAll('.lstep')];let i=0;els[0].classList.add('on');
-  ltimer=setInterval(()=>{if(i<els.length-1){els[i].classList.replace('on','done');i++;els[i].classList.add('on')}},1100)}
+  ltimer=setInterval(()=>{if(i<els.length-1){els[i].classList.replace('on','done');i++;els[i].classList.add('on')}},900)}
 /* plan */
 $('go').onclick=async()=>{
   const cards=[...document.querySelectorAll('.trav')];
@@ -293,10 +318,11 @@ $('go').onclick=async()=>{
   $('go').disabled=true;$('golbl').textContent='Asking Qloo…';$('st').textContent='';loading();
   {const t=$('out').getBoundingClientRect().top;if(t<0||t>innerHeight*0.7)$('out').scrollIntoView({behavior:'smooth',block:'start'})}
   try{
-    const r=await fetch('/api/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({travelers,days:+$('days').value,destination:$('dest').value.trim()||null})});
+    const req={travelers,days:+$('days').value,destination:$('dest').value.trim()||null};lastReq=null;
+    const r=await fetch('/api/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)});
     const d=await r.json();clearInterval(ltimer);
     if(!r.ok||d.error){showErr(r.status,d);return}
-    render(d);
+    lastReq=req;render(d);
   }catch(e){clearInterval(ltimer);showErr(0,{ask:'The request didn’t complete (network or server timeout). Please try again.'})}
   finally{$('go').disabled=false;$('golbl').textContent='Plan our trip'}};
 function showErr(code,d){const busy=code===503||code===504||code===502||code===0;
@@ -313,9 +339,10 @@ function render(d){
   let h='';
   // hero
   h+=`<div class="card dest"><div class="dtop"><div class="txt"><div class="eyebrow">${mine?'Your destination':'Best shared match'}</div><h2>${esc(d.destination)}</h2><p>${esc(d.narrative)}</p>
-   <div class="chips"><span class="dchip">⚖ least-matched: ${esc(top.least_happy||'—')}</span>${mine&&best?`<span class="dchip">★ Qloo’s top pick: ${esc(best.name.split(',')[0])} · ${best.group_fit.toFixed(1)}</span>`:''}<span class="dchip">${d.itinerary.length} stops · ${Object.keys(d.fair_share).length} travelers</span><span class="dchip">${d.source==='mock'?'offline mock graph':'live Qloo data'}</span></div></div>${ring(top.group_fit||0)}</div>
+   <div class="chips"><span class="dchip">⚖ least-matched: ${esc(top.least_happy||'—')}</span>${mine&&best?`<span class="dchip">★ Qloo’s top pick: ${esc(best.name.split(',')[0])} · ${best.group_fit.toFixed(1)}</span>`:''}<span class="dchip">${d.itinerary.length} stops · ${Object.keys(d.fair_share).length} travelers</span><span class="dchip">${d.source==='mock'?'offline mock graph':'live Qloo data'}</span></div>
+   <div class="acts"><button class="abtn" type="button" id="shr">🔗 Share this plan</button><button class="abtn" type="button" id="cpt">📋 Copy for group chat</button></div></div>${ring(top.group_fit||0)}</div>
    <div class="who">${d.travelers.map(t=>{const a=top.per_traveler[t.label]||0;const md=t.matched_detail||t.matched.map(n=>({name:n}));
-     return `<div class="wcard"><div class="wtop"><div class="av" style="background:${col(t.label)};width:28px;height:28px;font-size:12px">${initials(t.label)}</div><b>${esc(t.label)}</b><small>${Math.round(a*100)}%</small></div>
+     return `<div class="wcard"><div class="wtop"><div class="av" style="background:${col(t.label)};width:28px;height:28px;font-size:12px">${initials(t.label)}</div><b>${esc(t.label)}</b><small>${t.matched.length?Math.round(a*100)+'%':'no match'}</small></div>
      <div class="thumbs">${md.slice(0,2).map(m=>`<div class="thumb">${safeImg(m.image)?`<img src="${esc(m.image)}" referrerpolicy="no-referrer" alt="" onerror="this.replaceWith(Object.assign(document.createElement('i'),{textContent:'${initials(m.name)}'}))">`:`<i>${initials(m.name)}</i>`}<span>${esc(m.name)}</span></div>`).join('')}</div>
      <div class="mbar"><div style="width:0;background:${col(t.label)}" data-w="${Math.round(a*100)}"></div></div></div>`}).join('')}</div></div>`;
   if(d.unresolved&&d.unresolved.length)h+=`<div class="warn">Not found in Qloo (skipped, never guessed): ${esc(d.unresolved.join('; '))}</div>`;
@@ -335,23 +362,58 @@ function render(d){
      return `<div class="stop"><div class="img" style="background:linear-gradient(135deg,${col(x.for)}22,${col(x.for)}55)"><span class="slot">${esc(x.slot)}</span><span class="pin" style="background:${col(x.for)}">${x._n}</span>${initials(x.place)}${safeImg(x.image)?`<img src="${esc(x.image)}" referrerpolicy="no-referrer" loading="lazy" alt="" onerror="this.remove()">`:''}</div>
       <div class="sb"><b>${esc(x.place)}</b><div class="forrow"><span class="fp" style="background:${col(x.for)}">for ${esc(x.for)}</span><span class="match">${Math.round(x.affinity*100)}% taste match</span></div>
       ${x.description?`<div class="desc">${esc(x.description)}</div>`:(x.address?`<div class="desc">${esc(x.address)}</div>`:'')}
+      ${x.group_scores&&Object.keys(x.group_scores).length>1?`<div class="gs" title="Qloo affinity of this stop for each traveler">${Object.entries(x.group_scores).map(([k,v])=>`<span class="gsc ${k===x.for?'ownr':''}" style="${k===x.for?'color:'+col(k):''}"><i style="background:${col(k)}"></i>${esc(k)} ${Math.round(v*100)}</span>`).join('')}</div>`:''}
       <div class="tags">${tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
       <div class="why"><b>Why:</b> ${esc(x.why.replace(/^High Qloo affinity \([0-9.]+\) with /,'Qloo affinity with '))}</div></div></div>`}).join('')}</div></div>`}
   h+=`</div></div>`;
+  h+=fairCard(d,labels);
   // map + trace
   const pts=d.itinerary.filter(x=>typeof x.lat==='number'&&typeof x.lon==='number');
   const st=d.stats||{qloo_calls:d.trace.length};
   h+=`<div class="two">${pts.length>=2?`<div class="card sec"><div class="sh"><h3>Where it all is</h3><span class="sub">${pts.length} stops · Qloo coordinates</span></div>${mapSvg(pts)}<div class="legend">${labels.map(l=>`<span><i style="background:${col(l)}"></i>${esc(l)}</span>`).join('')}</div><div class="slist">${pts.map(p=>`<div><span class="sn" style="background:${col(p.for)}">${p._n}</span><span class="sp">${esc(p.place)}</span><span class="sd">Day ${p.day} · ${esc(p.slot)}</span></div>`).join('')}</div></div>`:''}
    <div class="card sec" ${pts.length>=2?'':'style="grid-column:1/-1"'}><div class="sh"><h3>Agent trace</h3><div class="stats"><span class="stat"><b>${st.qloo_calls}</b> Qloo calls</span>${st.elapsed_ms!=null?`<span class="stat"><b>${(st.elapsed_ms/1000).toFixed(1)} s</b></span>`:''}<span class="stat">${esc(d.source)}</span></div></div><div class="tl">${d.trace.map(traceRow).join('')}</div></div></div>`;
   h+=`<div class="note" style="justify-content:center">ⓘ ${esc(d.note||'')}</div>`;
-  $('out').innerHTML=h;
+  $('out').innerHTML=h;lastPlan=d;
+  if($('shr')){$('shr').onclick=sharePlan;$('cpt').onclick=copyText}
+  if(lastReq)history.replaceState(null,'','#plan='+enc(lastReq));
   requestAnimationFrame(()=>setTimeout(()=>document.querySelectorAll('[data-w]').forEach(e=>e.style.width=e.dataset.w+'%'),60));
 }
-const TOOLC={resolve_entity:['#e7f8f5','#0b8f7f'],resolve_destination:['#e7f8f5','#0b8f7f'],destination_affinity:['#efeafe','#5b3fd6'],local_places:['#fff1e6','#d9480f']};
+/* fairness self-check card */
+const DICON={compensate:'⚖',group_aware:'🤝',self_check:'✓',revise:'↻'};
+const DNAME={compensate:'Compensate',group_aware:'Group-aware picks',self_check:'Self-check',revise:'Self-check → re-plan'};
+function fairCard(d,labels){const fc=d.fairness_check;if(!fc||!d.itinerary.length||labels.length<2||!fc.scored_for_everyone)return '';
+  const e=fc.trip_enjoyment||{};labels=labels.filter(l=>l in e);if(labels.length<2)return '';const rev=(d.decisions||[]).some(x=>x.step==='revise');const sp=Math.round((fc.spread||0)*100);
+  return `<div class="card sec"><div class="sh"><h3>Fairness self-check</h3><span class="sub">every stop scored by Qloo for every traveler</span><span class="verdict ${sp<=5?'ok':'rev'}" style="margin-left:auto">${sp<=5?'✓ Fair: within '+sp+' pts':'Gap '+sp+' pts'+(rev?' · re-planned':'')}</span></div>
+  <div class="fc"><div><div class="sub" style="margin-bottom:4px">How much each traveler should enjoy the <b>whole</b> trip — mean Qloo affinity over all ${d.itinerary.length} stops, vs. their best option in ${esc((d.destination||'').split(',')[0])}</div>
+  ${labels.map(l=>{const v=Math.round((e[l]||0)*100);return `<div class="fcr"><b>${esc(l)}</b><div class="bb"><div style="width:0;background:${col(l)}" data-w="${v}"></div></div><span>${v}%</span><small>${(fc.own_picks||{})[l]||0} own pick${((fc.own_picks||{})[l]||0)===1?'':'s'} · scored on all ${d.itinerary.length} stops</small></div>`}).join('')}</div>
+  <div><div class="sub" style="margin-bottom:8px">What the agent decided</div><ul class="dec">${(d.decisions||[]).map(x=>`<li><span class="di">${DICON[x.step]||'•'}</span><span><b>${esc(DNAME[x.step]||x.step)}</b>${esc(x.text)}</span></li>`).join('')}</ul></div></div></div>`}
+/* share + copy */
+let lastReq=null,lastPlan=null;
+const enc=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const dec=s=>JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g,'+').replace(/_/g,'/')))));
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2600)}
+async function copy(txt,ok){try{await navigator.clipboard.writeText(txt);toast(ok)}catch(e){window.prompt('Copy this:',txt)}}
+function shareUrl(){return location.origin+location.pathname+'#plan='+enc(lastReq)}
+async function sharePlan(){if(!lastReq)return;const url=shareUrl();
+  if(navigator.share&&matchMedia('(pointer:coarse)').matches){try{await navigator.share({title:'TasteMatch Trips',text:'Our fair group trip: '+(lastPlan&&lastPlan.destination||''),url});return}catch(e){if(e&&e.name==='AbortError')return}}
+  copy(url,'Link copied — anyone who opens it gets the same group, re-planned live on Qloo.')}
+function copyText(){const d=lastPlan;if(!d)return;const fit=(d.chosen||d.ranking[0]||{}).group_fit;
+  const lines=[`✈ ${d.destination}${fit!=null?' — group fit '+fit.toFixed(1):''} (TasteMatch Trips)`];
+  let day=0;d.itinerary.forEach(x=>{if(x.day!==day){day=x.day;lines.push('','Day '+day)}lines.push(`• ${x.slot}: ${x.place} — for ${x.for} (${Math.round(x.affinity*100)}% match)`)});
+  const e=(d.fairness_check||{}).trip_enjoyment;if(e&&Object.keys(e).length>1)lines.push('','Whole-trip enjoyment: '+Object.entries(e).map(([k,v])=>k+' '+Math.round(v*100)+'%').join(' · '));
+  lines.push('','Plan: '+shareUrl());copy(lines.join('\n'),'Itinerary copied — paste it into your group chat.')}
+function loadFromHash(){const m=location.hash.match(/^#plan=([A-Za-z0-9_-]+)$/);if(!m)return;let p;try{p=dec(m[1])}catch(e){return}
+  if(!p||!Array.isArray(p.travelers)||!p.travelers.length)return;
+  $('tv').innerHTML='';p.travelers.slice(0,6).forEach(t=>{if(t&&typeof t.label==='string'&&Array.isArray(t.likes))trav({label:t.label.slice(0,30),likes:t.likes.slice(0,3).map(l=>({name:String(l.name||'').slice(0,120),type:T.includes(l.type)?l.type:'movie'}))})});
+  if(!document.querySelectorAll('.trav').length){trav();return}
+  setDays(Math.max(1,Math.min(5,+p.days||2)));$('dest').value=typeof p.destination==='string'?p.destination.slice(0,80):'';
+  setTimeout(()=>$('go').click(),50)}
+const TOOLC={resolve_entity:['#e7f8f5','#0b8f7f'],resolve_destination:['#e7f8f5','#0b8f7f'],destination_affinity:['#efeafe','#5b3fd6'],local_places:['#fff1e6','#d9480f'],cross_score_places:['#fff0f6','#c2255c']};
 function traceRow(s){const [bg,fg]=TOOLC[s.tool]||['#f2f0f8','#3b3857'];let det='';
   if(s.tool==='resolve_entity')det=`“${esc(s.query)}” <span style="color:var(--muted)">(${esc(TL[s.type]||s.type)})</span> → ${s.found?'<span class="ok">matched</span>':'<span class="no">not found</span>'}`;
   else if(s.tool==='resolve_destination')det=`Destination “${esc(s.query)}” → ${s.found?'<span class="ok">matched</span>':'<span class="no">not found</span>'}`;
   else if(s.tool==='destination_affinity')det=`${s.traveler==='group'?'<b>Whole group</b>':'<b>'+esc(s.traveler)+'</b>'} · ${s.signals} taste signals → ${s.results} destinations${s.filtered?' (same candidate set)':''}`;
+  else if(s.tool==='cross_score_places')det=`<b>${esc(s.traveler)}</b> · scored all ${s.candidates} candidate stops → ${s.results} affinities`;
   else if(s.tool==='local_places')det=`<b>${esc(s.traveler)}</b> · ${esc(s.location)} → ${s.results} places`;
   else det=esc(JSON.stringify(s));
   return `<div class="tli" style="color:${fg}"><span class="tdot"></span><div><div class="tt"><span class="tool" style="background:${bg};color:${fg}">${esc(s.tool)}</span><span class="ep">GET ${esc(s.endpoint)}</span></div><div class="td">${det}</div></div></div>`}
@@ -370,6 +432,7 @@ function mapSvg(pts){const W=360,H=250,P=40;const lats=pts.map(p=>p.lat),lons=pt
      const lx=right?x+18:x-18;
      return `<g>${dy?`<line x1="${x}" y1="${y}" x2="${right?lx-3:lx+3}" y2="${y+dy}" stroke="#9aa3c0" stroke-width="1"/>`:''}<circle cx="${x}" cy="${y}" r="16" fill="${col(p.for)}" opacity=".18"/><circle cx="${x}" cy="${y}" r="12" fill="${col(p.for)}" stroke="#fff" stroke-width="2.5"/><text x="${x}" y="${y+4}" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">${p._n}</text><text x="${lx}" y="${y+dy+4}" text-anchor="${right?'start':'end'}" font-size="12" font-weight="650" fill="#3b3857" paint-order="stroke" stroke="#eef3fb" stroke-width="4">${lab}</text></g>`}).join('')})()}
    <g transform="translate(${P-20},${H-18})"><line x1="0" y1="0" x2="${barPx}" y2="0" stroke="#75718f" stroke-width="2"/><line x1="0" y1="-4" x2="0" y2="4" stroke="#75718f" stroke-width="2"/><line x1="${barPx}" y1="-4" x2="${barPx}" y2="4" stroke="#75718f" stroke-width="2"/><text x="${barPx+8}" y="4" font-size="11" fill="#75718f">${barKm} km</text></g></svg></div>`}
+loadFromHash();
 </script>
 </body>
 </html>

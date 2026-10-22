@@ -30,12 +30,19 @@ Each traveler names 2–3 cultural favourites. TasteMatch Trips:
 3. Ranks cities by a fairness score: **group_fit = 40% mean + 40% minimum + 20% group affinity**, and names
    the least-matched traveler.
 4. Pulls local places per traveler (`filter.type=urn:entity:place` + `filter.location.query`).
-5. Builds a round-robin itinerary so everyone gets equal slots, each pick citing Qloo affinity and source favourites.
-6. Writes a short narrative from those facts only (deterministic template; an LLM rewrite is optional and off in the hosted demo).
-7. If the group names its own destination, resolves it in Qloo and scores it for every traveler next to Qloo's top pick.
+5. Scores **every candidate stop for every traveler** (`filter.entities` over all stops + the same location) —
+   a traveler × stop affinity matrix.
+6. Plans → self-checks → re-plans: the least-matched traveler picks first; each turn takes one of the owner's
+   top-tier stops that best lifts whoever is furthest behind; then the agent measures how much each person should
+   enjoy the whole trip (relative to their own best option there) and re-plans once if the gap exceeds 5 points.
+   The UI shows the result and every decision ("Fairness self-check").
+7. Writes a short narrative from those facts only (deterministic template; an LLM rewrite is optional and off in the hosted demo).
+8. If the group names its own destination, resolves it in Qloo and scores it for every traveler next to Qloo's top pick.
 
 The web UI shows the best shared match (group-fit ring, per-traveler fit), the fairness ranking, a photo itinerary
-with provenance, a map of the stops and the full agent trace (every Qloo call, count and time). Screenshots of a
+with provenance and per-traveler scores on every stop, the fairness self-check, a map of the stops and the full
+agent trace (every Qloo call, count and time). **Share this plan** gives a link that re-creates the group and
+re-plans it live; **Copy for group chat** copies the itinerary as text. Screenshots of a
 live run: `docs/screenshots/`; demo video: `docs/demo-v2.mp4` (hosted demo, 1:54). An n8n workflow
 (`n8n/telegram-group-trip.json`) can post the plan into a Telegram group.
 
@@ -46,11 +53,12 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 ## How we built it
 
 - **FastAPI** app (`app/main.py`) with `POST /api/plan`, sample endpoint, health check, static UI.
-- **Agent** (`app/agent.py`): resolve → destination affinities → fairness → places → itinerary → narrate.
+- **Agent** (`app/agent.py`): resolve → destination affinities → fairness → places → cross-score stops →
+  plan / self-check / re-plan → narrate.
 - **Qloo client** (`app/qloo.py`): hackathon base URL, `X-Api-Key`, in-process LRU cache, 429 retries,
   destination labels with geocode disambiguation, offline mock graph for CI and demos without a key.
 - **n8n** Telegram group workflow; **Docker Compose** for app + n8n.
-- **Tests:** 29 pytest cases covering fairness math, mock planning, chosen destinations, friendly errors (422/503/504), bounded 429 retries, API routes, live response shapes, and optional live smoke.
+- **Tests:** 38 pytest cases covering fairness math, venue-level cross-scoring, group-aware picks, self-check/re-plan, mock planning, chosen destinations, friendly errors (422/503/504), bounded 429 retries, API routes, live response shapes, and optional live smoke.
 
 ## Challenges we ran into
 
@@ -68,13 +76,16 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 - Fairness ranking that surfaces the least-matched traveler instead of hiding them.
 - Provenance on every itinerary slot (affinity + which favourites drove the pick).
 - Full agent trace in the UI so judges can see every Qloo call.
-- 29 passing tests; works offline via mock when the key is absent.
+- An agent that checks its own plan for fairness — and re-plans when someone would enjoy the trip less.
+- 38 passing tests; works offline via mock when the key is absent.
 
 ## What we learned
 
 - Taste AI is most useful when you constrain the candidate set and measure fairness, not when you only ask for
   "top destinations for the union of likes."
 - Responsible defaults (nicknames, unmatched surfaced, memory-only cache) are easy to bake in early and hard to retrofit.
+- Raw affinities aren't comparable across people (some tastes score high everywhere), so fairness has to be
+  measured against each traveler's own best option.
 - Small UX cues (source badge, least-matched label, fair-share counters) make an agent feel trustworthy.
 
 ## What's next
@@ -83,7 +94,6 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 - Budget and travel-time constraints alongside fairness.
 - Telegram group polls to confirm the chosen city.
 - Local guides for Samarkand / Tashkent as first-class destinations.
-- Public demo deploy with the hackathon key as a secret.
 
 ## Built with
 
