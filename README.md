@@ -157,7 +157,7 @@ POST /api/plan
 - Devpost write-up: [`SUBMISSION.md`](SUBMISSION.md)
 - Demo script: [`docs/video-script.md`](docs/video-script.md)
 - Slides PDF: [`docs/slides.pdf`](docs/slides.pdf) · cover: [`docs/cover.png`](docs/cover.png)
-- **Demo video:** [`docs/demo-v3.mp4`](docs/demo-v3.mp4) (2:20, screen recording of the hosted demo at tastematch-trips.vercel.app: every stop scored for every traveler, the fairness self-check with re-plan, share link and copy-for-group-chat; script [`docs/video-script-v3.md`](docs/video-script-v3.md), subtitles [`docs/demo-v3.srt`](docs/demo-v3.srt)). Previous cut: [`docs/demo-v2.mp4`](docs/demo-v2.mp4) (1:54, incl. the own-destination flow)
+- **Demo video:** [`docs/demo-v4.mp4`](docs/demo-v4.mp4) (2:24, screen recording of the hosted demo at tastematch-trips.vercel.app: every stop scored for every traveler, real venues only (hotels and errands filtered out) ordered by time of day, the fairness self-check with re-plan, share link and copy-for-group-chat; script [`docs/video-script-v4.md`](docs/video-script-v4.md), subtitles [`docs/demo-v4.srt`](docs/demo-v4.srt)). Previous cuts: [`docs/demo-v3.mp4`](docs/demo-v3.mp4) (2:20, recorded before the venue filter), [`docs/demo-v2.mp4`](docs/demo-v2.mp4) (1:54, incl. the own-destination flow)
 - Earlier live draft: [`docs/demo-live-draft.mp4`](docs/demo-live-draft.mp4) (1:59, script [`docs/video-script-live.md`](docs/video-script-live.md))
 - Older draft (slides + narration): [`docs/demo-draft.mp4`](docs/demo-draft.mp4)
 - Screenshots of the live run: [`docs/screenshots/`](docs/screenshots/)
