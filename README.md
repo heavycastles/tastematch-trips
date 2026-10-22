@@ -124,7 +124,7 @@ bounded retry on HTTP 429, typed errors (rate limit / timeout / bad location / u
 ```bash
 cp .env.example .env               # QLOO_API_KEY from the hackathon key form
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q                # 38 tests (offline mock + live smoke if key present)
+.venv/bin/pytest -q                # 39 tests (offline mock + live smoke if key present)
 .venv/bin/python serve.py          # loads .env; http://localhost:8080 → "Load sample" → "Plan our trip"
 docker compose up --build          # app :8080 + n8n :5678
 ```
@@ -152,7 +152,7 @@ POST /api/plan
 - Devpost write-up: [`SUBMISSION.md`](SUBMISSION.md)
 - Demo script: [`docs/video-script.md`](docs/video-script.md)
 - Slides PDF: [`docs/slides.pdf`](docs/slides.pdf) · cover: [`docs/cover.png`](docs/cover.png)
-- **Demo video:** [`docs/demo-v2.mp4`](docs/demo-v2.mp4) (1:54, screen recording of the hosted demo at tastematch-trips.vercel.app, incl. the own-destination flow; script [`docs/video-script-v2.md`](docs/video-script-v2.md), subtitles [`docs/demo-v2.srt`](docs/demo-v2.srt))
+- **Demo video:** [`docs/demo-v3.mp4`](docs/demo-v3.mp4) (2:20, screen recording of the hosted demo at tastematch-trips.vercel.app: every stop scored for every traveler, the fairness self-check with re-plan, share link and copy-for-group-chat; script [`docs/video-script-v3.md`](docs/video-script-v3.md), subtitles [`docs/demo-v3.srt`](docs/demo-v3.srt)). Previous cut: [`docs/demo-v2.mp4`](docs/demo-v2.mp4) (1:54, incl. the own-destination flow)
 - Earlier live draft: [`docs/demo-live-draft.mp4`](docs/demo-live-draft.mp4) (1:59, script [`docs/video-script-live.md`](docs/video-script-live.md))
 - Older draft (slides + narration): [`docs/demo-draft.mp4`](docs/demo-draft.mp4)
 - Screenshots of the live run: [`docs/screenshots/`](docs/screenshots/)

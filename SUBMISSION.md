@@ -43,7 +43,7 @@ The web UI shows the best shared match (group-fit ring, per-traveler fit), the f
 with provenance and per-traveler scores on every stop, the fairness self-check, a map of the stops and the full
 agent trace (every Qloo call, count and time). **Share this plan** gives a link that re-creates the group and
 re-plans it live; **Copy for group chat** copies the itinerary as text. Screenshots of a
-live run: `docs/screenshots/`; demo video: `docs/demo-v2.mp4` (hosted demo, 1:54). An n8n workflow
+live run: `docs/screenshots/`; demo video: `docs/demo-v3.mp4` (hosted demo, 2:20). An n8n workflow
 (`n8n/telegram-group-trip.json`) can post the plan into a Telegram group.
 
 **Live verification (13 Oct 2026)** against `https://hackathon.api.qloo.com`: sample trio Aziz / Malika / Rustam
@@ -58,7 +58,7 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 - **Qloo client** (`app/qloo.py`): hackathon base URL, `X-Api-Key`, in-process LRU cache, 429 retries,
   destination labels with geocode disambiguation, offline mock graph for CI and demos without a key.
 - **n8n** Telegram group workflow; **Docker Compose** for app + n8n.
-- **Tests:** 38 pytest cases covering fairness math, venue-level cross-scoring, group-aware picks, self-check/re-plan, mock planning, chosen destinations, friendly errors (422/503/504), bounded 429 retries, API routes, live response shapes, and optional live smoke.
+- **Tests:** 39 pytest cases covering fairness math, venue-level cross-scoring, group-aware picks, self-check/re-plan, mock planning, chosen destinations, friendly errors (422/503/504), bounded 429 retries, API routes, live response shapes, and optional live smoke.
 
 ## Challenges we ran into
 
@@ -77,7 +77,7 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 - Provenance on every itinerary slot (affinity + which favourites drove the pick).
 - Full agent trace in the UI so judges can see every Qloo call.
 - An agent that checks its own plan for fairness — and re-plans when someone would enjoy the trip less.
-- 38 passing tests; works offline via mock when the key is absent.
+- 39 passing tests; works offline via mock when the key is absent.
 
 ## What we learned
 
@@ -103,6 +103,6 @@ Python, FastAPI, Qloo Taste AI (`/search`, `/v2/insights`), httpx, n8n, Docker, 
 
 - Functional demo: https://tastematch-trips.vercel.app (Vercel; Render Blueprint `render.yaml` also included)
 - Public repo (MIT): https://github.com/heavycastles/tastematch-trips
-- Video: `docs/demo-v2.mp4` (1:54, script `docs/video-script-v2.md`, subtitles `docs/demo-v2.srt`); older drafts `docs/demo-live-draft.mp4`, `docs/demo-draft.mp4`
+- Video: `docs/demo-v3.mp4` (2:20, script `docs/video-script-v3.md`, subtitles `docs/demo-v3.srt`, cover `docs/demo-v3-cover.png`); previous cut `docs/demo-v2.mp4` (1:54); older drafts `docs/demo-live-draft.mp4`, `docs/demo-draft.mp4`
 - Slides PDF: `docs/slides.pdf` · Cover: `docs/cover.png`
 - Live sample (sanitized): `docs/live-sample.md`
