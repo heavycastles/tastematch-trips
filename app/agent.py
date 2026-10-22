@@ -10,7 +10,9 @@ trip, and re-plan once if the gap is too wide. An optional LLM writes the narrat
 
 from __future__ import annotations
 
+import itertools
 import os
+import re
 import time
 from dataclasses import dataclass, field
 
@@ -62,8 +64,22 @@ def fairness(per_traveler: dict[str, dict[str, float]], group: list[dict]) -> li
     return out
 
 
+class _Pool(list):
+    skipped = 0
+
+
+def _stops(places: list[dict]) -> list[dict]:
+    """Keep the traveler's top visitable venues (Qloo order = affinity order); hotels and errands are dropped.
+    If a small town has nothing but hotels, fall back to what Qloo returned rather than an empty day."""
+    keep = [p for p in places if visitable(p)]
+    pool = _Pool((keep or places)[:POOL_SIZE])
+    pool.skipped = len(places) - len(keep) if keep else 0
+    return pool
+
+
 def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -> dict:
     t0 = time.perf_counter()
+    misses0 = qloo._cached_get.cache_info().misses
     tr = Trace()
     travelers, unresolved = resolve([dict(t) for t in travelers], tr)
     all_ids = [e["id"] for t in travelers for e in t["entities"]]
@@ -137,7 +153,8 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
         ids = [e["id"] for e in t["entities"]]
         try:
             pools[t["label"]] = (
-                qloo.insights("urn:entity:place", ids, 8, location=place_location) if ids and place_location else []
+                _stops(qloo.insights("urn:entity:place", ids, PLACE_TAKE, location=place_location))
+                if ids and place_location else []
             )
         except qloo.QlooError as e:
             if e.kind != "bad_location":
@@ -145,13 +162,14 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
             alt = loc_by_name.get(name_by_id.get(chosen_id, "")) if chosen_id else None
             if alt and alt != place_location:
                 place_location = alt
-                pools[t["label"]] = qloo.insights("urn:entity:place", ids, 8, location=place_location)
+                pools[t["label"]] = _stops(qloo.insights("urn:entity:place", ids, PLACE_TAKE, location=place_location))
             else:
                 return {"error": "destination_not_found", "unresolved": unresolved,
                         "ask": f"Qloo has no local venue data for \"{place_location}\". Try a nearby larger city, "
                                "or leave the destination empty."}
         tr.add("local_places", endpoint="/v2/insights", filter_type="place", traveler=t["label"],
-               location=place_location, results=len(pools[t["label"]]))
+               location=place_location, results=len(pools[t["label"]]),
+               skipped=getattr(pools[t["label"]], "skipped", 0))
 
     # Venue-level fairness: score EVERY candidate stop for EVERY traveler (same filter.entities trick as for
     # cities), so the agent knows not only who a stop is for, but how much the rest of the group will enjoy it.
@@ -196,11 +214,92 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
               "source": "qloo-hackathon-api" if qloo.live() else "mock",
               "note": "Qloo results are aggregate taste affinities, not predictions about any individual."}
     result["narrative"] = narrate(result)
-    result["stats"] = {"qloo_calls": len(tr.steps), "elapsed_ms": int((time.perf_counter() - t0) * 1000)}
+    fresh = qloo._cached_get.cache_info().misses - misses0 if qloo.live() else len(tr.steps)
+    result["stats"] = {"qloo_calls": len(tr.steps), "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+                       # identical Qloo requests are cached in-process, so a repeat plan answers instantly
+                       "cached": max(0, len(tr.steps) - max(0, fresh))}
     return result
 
 
 SLOTS = ("morning", "afternoon", "evening")
+PLACE_TAKE = 40  # Qloo's place results skew heavily to hotels; fetch a wider list, keep the visitable ones
+POOL_SIZE = 8
+
+# Somewhere you sleep or a local errand is not a trip stop (Qloo's place graph includes both).
+NOT_A_STOP = ("hotel", "motel", "hostel", "lodging", "accommodation", "guest_house", "bed_and_breakfast", "inn",
+              "villa", "cottage", "chalet", "apartment", "condominium", "housing", "residential", "real_estate",
+              "campground", "rv_park", "pet_", "veterinar", "dentist", "doctor", "clinic", "hospital", "pharmacy",
+              "bank", "atm", "insurance", "lawyer", "attorney", "accountant", "car_", "auto_", "gas_station",
+              "storage", "laundry", "dry_clean", "plumber", "electrician", "contractor", "locksmith",
+              "corporate_office", "school", "post_office", "government", "funeral", "cemetery", "parking")
+LODGING_WORDS = re.compile(r"\b(hotel|resort|residences|suites|hostel|motel|condo\w*|apartments?|villas?|"
+                           r"boarding|vacation rental)\b", re.I)
+
+
+def _cat_hit(cat: str) -> bool:
+    return any(cat == k or cat.startswith(k) or cat.endswith("_" + k) for k in NOT_A_STOP)
+
+
+def visitable(p: dict) -> bool:
+    """True if a Qloo place is somewhere a group would actually go during the day (not a hotel, condo, pet shop,
+    bank...). Uses Qloo's urn:tag:category:place tags; uncategorised venues fall back to a description check."""
+    cats = p.get("categories") or []
+    if cats:
+        return not any(_cat_hit(c) for c in cats)
+    return not LODGING_WORDS.search(f"{p.get('name') or ''} {p.get('description') or ''}")
+
+
+def kind(p: dict) -> str | None:
+    """Human label for the venue type, e.g. 'Seafood restaurant' (most specific Qloo category first)."""
+    cats = [c for c in (p.get("categories") or []) if c not in ("place", "food_and_drink")]
+    if not cats:
+        return None
+    specific = [c for c in cats if c != "restaurant"] or cats
+    return specific[0].replace("_", " ").capitalize()
+
+
+EVENING = ("bar", "pub", "night_club", "club", "lounge", "fine_dining", "steak_house", "restaurant", "brewery",
+           "winery", "theater", "jazz", "karaoke", "cocktail", "izakaya", "music_venue", "concert", "stadium", "arena")
+MORNING = ("breakfast", "cafe", "coffee", "bakery", "brunch", "market", "museum", "gallery", "park", "garden",
+           "hiking", "trail", "beach", "tour", "temple", "church", "attraction", "landmark", "spa", "studio",
+           "store", "shop", "boutique", "mall", "scenic_spot", "zoo", "aquarium", "water_park", "amusement_park")
+
+
+def _has(cats: list[str], keys: tuple[str, ...]) -> bool:
+    """Whole-word match on category slugs ('spa' matches 'day_spa', not 'spanish_restaurant')."""
+    for c in cats:
+        toks = c.split("_")
+        if any(k == c or k in toks or ("_" in k and k in c) for k in keys):
+            return True
+    return False
+
+
+def _slot_fit(stop: dict, slot: str) -> int:
+    cats = stop.get("categories") or []
+    if not cats:
+        return 0
+    eve = _has(cats, EVENING) and not _has(cats, ("breakfast", "cafe", "coffee", "bakery", "brunch"))
+    day = _has(cats, MORNING)
+    if slot == "evening":
+        return 2 if eve else (-1 if day else 0)
+    if slot == "morning":
+        return 2 if day else (-1 if eve else 0)
+    return 1 if day else 0  # afternoon: sights/beaches/lunch spots are all fine
+
+
+def arrange_day(stops: list[dict]) -> tuple[list[dict], bool]:
+    """Re-order one day's picks so cafés and sights land in the morning and dinner/bars in the evening. Only the
+    time of day changes: the same stops, owners and scores, so the fairness math is untouched."""
+    slots = [s["slot"] for s in stops]
+    best, best_fit = list(stops), sum(_slot_fit(s, sl) for s, sl in zip(stops, slots, strict=True))
+    for perm in itertools.permutations(stops):
+        fit = sum(_slot_fit(s, sl) for s, sl in zip(perm, slots, strict=True))
+        if fit > best_fit:
+            best, best_fit = list(perm), fit
+    moved = [s["id"] for s in best] != [s["id"] for s in stops]
+    out = [dict(s, slot=sl) for s, sl in zip(best, slots, strict=True)]
+    return out, moved
+
 TIER = 0.03  # a pick counts as "the owner's top tier" within this affinity of their best remaining stop
 
 
@@ -285,7 +384,8 @@ def build_itinerary(labels, pools, matrix, likes_of, days, dest_score, max_sprea
                                   "affinity": aff, "group_scores": scores, "address": pick.get("address"),
                                   "description": pick.get("description") or "", "image": pick.get("image"),
                                   "lat": pick.get("lat"), "lon": pick.get("lon"), "why": why,
-                                  "tags": pick.get("tags", [])})
+                                  "tags": pick.get("tags", []), "kind": kind(pick),
+                                  "categories": pick.get("categories", [])})
         return itinerary, swaps
 
     itinerary, swaps = run(TIER, order)
@@ -310,6 +410,15 @@ def build_itinerary(labels, pools, matrix, likes_of, days, dest_score, max_sprea
             decisions.append({"step": "self_check", "text": f"Self-check passed: everyone's expected enjoyment of "
                               f"the whole trip is within {round(100 * check['spread'])} pts "
                               f"(limit {round(100 * max_spread)})."})
+    arranged, moved = [], 0
+    for d in sorted({x["day"] for x in itinerary}):
+        day, m = arrange_day([x for x in itinerary if x["day"] == d])
+        arranged += day
+        moved += m
+    itinerary = arranged
+    if moved:
+        decisions.append({"step": "time_of_day", "text": f"Re-ordered {moved} day(s) by venue type: cafés, sights "
+                          "and beaches by day, dinner and bars in the evening (same stops, same scores)."})
     check["own_picks"] = {lb: sum(1 for x in itinerary if x["for"] == lb) for lb in labels}
     check["scored_for_everyone"] = bool(itinerary) and all(
         all(x["id"] in matrix.get(lb, {}) for lb in labels) for x in itinerary if x.get("id"))

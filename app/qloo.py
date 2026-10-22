@@ -115,6 +115,16 @@ def _tag_names(entity: dict) -> list[str]:
     return out[:6]
 
 
+def _categories(entity: dict) -> list[str]:
+    """Venue categories Qloo attaches as urn:tag:category:place:<slug> (e.g. hotel, seafood_restaurant, museum)."""
+    out = []
+    for t in entity.get("tags") or []:
+        tid = t.get("id") if isinstance(t, dict) else None
+        if isinstance(tid, str) and tid.startswith("urn:tag:category:place:"):
+            out.append(tid.rsplit(":", 1)[-1])
+    return out
+
+
 CITY_STATES = {"HK", "MO", "SG", "MC", "VA", "SM", "LU", "MT", "AD", "LI", "BH"}
 
 
@@ -178,6 +188,7 @@ def _parse_entity(entity: dict, *, as_destination: bool = False) -> dict:
         "name": name,
         "affinity": _affinity(entity),
         "tags": _tag_names(entity),
+        "categories": _categories(entity),
         "address": props.get("address"),
         "description": (props.get("description") or props.get("short_description") or "")[:240],
         "location_query": _location_query(entity) if as_destination else None,
@@ -273,6 +284,12 @@ class _Mock:
         "wellness": "Bathhouse", "adventure": "Day-hike outfitter", "shopping": "Concept store",
         "pop": "Karaoke lounge", "rnb": "Jazz & soul bar",
     }
+    CATEGORY = {  # mock venue -> Qloo-style place category slug
+        "street_food": "night_market", "craft": "art_studio", "design": "museum", "nightlife": "bar",
+        "electronic": "night_club", "nature": "hiking_area", "anime": "museum", "vintage": "amusement_center",
+        "fine_dining": "fine_dining_restaurant", "wellness": "spa", "adventure": "tour_agency",
+        "shopping": "store", "pop": "karaoke_bar", "rnb": "jazz_club",
+    }
 
     def search(self, query, etype, take):
         k = query.strip().lower()
@@ -312,6 +329,7 @@ class _Mock:
                 "name": name,
                 "affinity": aff,
                 "tags": dtags[:6],
+                "categories": [self.CATEGORY[dtags[0]]] if ftype == "urn:entity:place" else [],
                 "address": None,
                 "description": "",
                 "location_query": name if ftype == "urn:entity:destination" else None,

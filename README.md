@@ -32,6 +32,9 @@ optimise and check, not a vibe:
 3. **fairness ranking** — `group_fit = 40% mean + 40% minimum + 20% group affinity`, so a city that thrills two
    friends and bores the third ranks below one everyone likes. The "least-matched traveler" is shown.
 4. **local_places** — `GET /v2/insights?filter.type=urn:entity:place&filter.location.query=<City, Region>` per traveler.
+   Qloo's place graph includes hotels, condos and errands (pet stores, clinics, banks), so the agent asks for 40
+   venues and keeps the top 8 a group would actually visit, using Qloo's `urn:tag:category:place:*` tags (the trace
+   shows how many were skipped). Each stop card shows its venue type.
 5. **cross_score_places** — every candidate stop from step 4 is scored for **every** traveler with
    `filter.entities=<all candidate stops>` + the same location, giving a traveler × stop affinity matrix.
 6. **itinerary (plan → self-check → re-plan)** — the agent acts on that matrix:
@@ -42,6 +45,8 @@ optimise and check, not a vibe:
      stops, relative to their own best option in the city, because some tastes score high everywhere) and,
      if the gap is over 5 points, re-plans once with the least-satisfied traveler first and a wider window,
      keeping the revision only if the gap shrinks. Every decision is shown in the UI ("What the agent decided").
+   - *time of day:* within each day, cafés, sights, shops and beaches go to the morning/afternoon and dinner, bars
+     and stadiums to the evening; only the slot changes (same stops, owners and scores), so fairness is untouched.
    Each stop cites its owner's Qloo affinity, the favourites it came from, and its score for everyone else. The pitch is a deterministic summary of those facts; if
    `LLM_BASE_URL`/`LLM_API_KEY` are set, an LLM rewrites it from the same facts (not enabled on the hosted demo).
 
@@ -124,7 +129,7 @@ bounded retry on HTTP 429, typed errors (rate limit / timeout / bad location / u
 ```bash
 cp .env.example .env               # QLOO_API_KEY from the hackathon key form
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q                # 39 tests (offline mock + live smoke if key present)
+.venv/bin/pytest -q                # 48 tests (offline mock + live smoke if key present)
 .venv/bin/python serve.py          # loads .env; http://localhost:8080 → "Load sample" → "Plan our trip"
 docker compose up --build          # app :8080 + n8n :5678
 ```

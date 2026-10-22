@@ -66,7 +66,7 @@ def test_norm_compares_travelers_to_their_own_best():
 def test_single_traveler_skips_cross_scoring():
     r = plan([{"label": "Solo", "likes": [{"name": "Daft Punk", "type": "artist"}]}], days=1)
     assert "cross_score_places" not in [s["tool"] for s in r["trace"]]
-    assert r["itinerary"] and r["decisions"] == []
+    assert r["itinerary"] and [d for d in r["decisions"] if d["step"] != "time_of_day"] == []
 
 
 def test_cross_score_failure_degrades_gracefully(monkeypatch):

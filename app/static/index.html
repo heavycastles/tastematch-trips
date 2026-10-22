@@ -170,6 +170,7 @@ main.wrap{display:grid;grid-template-columns:400px 1fr;gap:24px;margin-top:-54px
 .desc{color:var(--muted);font-size:12.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tags{display:flex;gap:5px;flex-wrap:wrap}
 .tag{background:#f4f2fb;color:var(--ink2);border-radius:7px;padding:2px 7px;font-size:11px;font-weight:600}
+.tag.kind{background:#fff1e6;color:#b4410c}
 .why{margin-top:auto;font-size:11.5px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
 .why b{font-size:11.5px;color:var(--ink2)}
 /* map + trace */
@@ -363,7 +364,7 @@ function render(d){
       <div class="sb"><b>${esc(x.place)}</b><div class="forrow"><span class="fp" style="background:${col(x.for)}">for ${esc(x.for)}</span><span class="match">${Math.round(x.affinity*100)}% taste match</span></div>
       ${x.description?`<div class="desc">${esc(x.description)}</div>`:(x.address?`<div class="desc">${esc(x.address)}</div>`:'')}
       ${x.group_scores&&Object.keys(x.group_scores).length>1?`<div class="gs" title="Qloo affinity of this stop for each traveler">${Object.entries(x.group_scores).map(([k,v])=>`<span class="gsc ${k===x.for?'ownr':''}" style="${k===x.for?'color:'+col(k):''}"><i style="background:${col(k)}"></i>${esc(k)} ${Math.round(v*100)}</span>`).join('')}</div>`:''}
-      <div class="tags">${tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
+      <div class="tags">${x.kind?`<span class="tag kind" title="Venue type (Qloo category)">${esc(x.kind)}</span>`:''}${tags.filter(t=>!x.kind||t.toLowerCase()!==x.kind.toLowerCase()).slice(0,x.kind?3:4).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
       <div class="why"><b>Why:</b> ${esc(x.why.replace(/^High Qloo affinity \([0-9.]+\) with /,'Qloo affinity with '))}</div></div></div>`}).join('')}</div></div>`}
   h+=`</div></div>`;
   h+=fairCard(d,labels);
@@ -371,7 +372,7 @@ function render(d){
   const pts=d.itinerary.filter(x=>typeof x.lat==='number'&&typeof x.lon==='number');
   const st=d.stats||{qloo_calls:d.trace.length};
   h+=`<div class="two">${pts.length>=2?`<div class="card sec"><div class="sh"><h3>Where it all is</h3><span class="sub">${pts.length} stops · Qloo coordinates</span></div>${mapSvg(pts)}<div class="legend">${labels.map(l=>`<span><i style="background:${col(l)}"></i>${esc(l)}</span>`).join('')}</div><div class="slist">${pts.map(p=>`<div><span class="sn" style="background:${col(p.for)}">${p._n}</span><span class="sp">${esc(p.place)}</span><span class="sd">Day ${p.day} · ${esc(p.slot)}</span></div>`).join('')}</div></div>`:''}
-   <div class="card sec" ${pts.length>=2?'':'style="grid-column:1/-1"'}><div class="sh"><h3>Agent trace</h3><div class="stats"><span class="stat"><b>${st.qloo_calls}</b> Qloo calls</span>${st.elapsed_ms!=null?`<span class="stat"><b>${(st.elapsed_ms/1000).toFixed(1)} s</b></span>`:''}<span class="stat">${esc(d.source)}</span></div></div><div class="tl">${d.trace.map(traceRow).join('')}</div></div></div>`;
+   <div class="card sec" ${pts.length>=2?'':'style="grid-column:1/-1"'}><div class="sh"><h3>Agent trace</h3><div class="stats"><span class="stat"><b>${st.qloo_calls}</b> Qloo calls</span>${st.elapsed_ms!=null?`<span class="stat"><b>${(st.elapsed_ms/1000).toFixed(1)} s</b></span>`:''}${st.cached?`<span class="stat" title="Identical Qloo requests are cached, so a repeat plan answers instantly"><b>${st.cached===st.qloo_calls?'all':st.cached}</b> cached</span>`:''}<span class="stat">${esc(d.source)}</span></div></div><div class="tl">${d.trace.map(traceRow).join('')}</div></div></div>`;
   h+=`<div class="note" style="justify-content:center">ⓘ ${esc(d.note||'')}</div>`;
   $('out').innerHTML=h;lastPlan=d;
   if($('shr')){$('shr').onclick=sharePlan;$('cpt').onclick=copyText}
@@ -379,8 +380,8 @@ function render(d){
   requestAnimationFrame(()=>setTimeout(()=>document.querySelectorAll('[data-w]').forEach(e=>e.style.width=e.dataset.w+'%'),60));
 }
 /* fairness self-check card */
-const DICON={compensate:'⚖',group_aware:'🤝',self_check:'✓',revise:'↻'};
-const DNAME={compensate:'Compensate',group_aware:'Group-aware picks',self_check:'Self-check',revise:'Self-check → re-plan'};
+const DICON={compensate:'⚖',group_aware:'🤝',self_check:'✓',revise:'↻',time_of_day:'🕘'};
+const DNAME={compensate:'Compensate',group_aware:'Group-aware picks',self_check:'Self-check',revise:'Self-check → re-plan',time_of_day:'Time of day'};
 function fairCard(d,labels){const fc=d.fairness_check;if(!fc||!d.itinerary.length||labels.length<2||!fc.scored_for_everyone)return '';
   const e=fc.trip_enjoyment||{};labels=labels.filter(l=>l in e);if(labels.length<2)return '';const rev=(d.decisions||[]).some(x=>x.step==='revise');const sp=Math.round((fc.spread||0)*100);
   return `<div class="card sec"><div class="sh"><h3>Fairness self-check</h3><span class="sub">every stop scored by Qloo for every traveler</span><span class="verdict ${sp<=5?'ok':'rev'}" style="margin-left:auto">${sp<=5?'✓ Fair: within '+sp+' pts':'Gap '+sp+' pts'+(rev?' · re-planned':'')}</span></div>
@@ -414,7 +415,7 @@ function traceRow(s){const [bg,fg]=TOOLC[s.tool]||['#f2f0f8','#3b3857'];let det=
   else if(s.tool==='resolve_destination')det=`Destination “${esc(s.query)}” → ${s.found?'<span class="ok">matched</span>':'<span class="no">not found</span>'}`;
   else if(s.tool==='destination_affinity')det=`${s.traveler==='group'?'<b>Whole group</b>':'<b>'+esc(s.traveler)+'</b>'} · ${s.signals} taste signals → ${s.results} destinations${s.filtered?' (same candidate set)':''}`;
   else if(s.tool==='cross_score_places')det=`<b>${esc(s.traveler)}</b> · scored all ${s.candidates} candidate stops → ${s.results} affinities`;
-  else if(s.tool==='local_places')det=`<b>${esc(s.traveler)}</b> · ${esc(s.location)} → ${s.results} places`;
+  else if(s.tool==='local_places')det=`<b>${esc(s.traveler)}</b> · ${esc(s.location)} → ${s.results} places${s.skipped?` <span style="opacity:.7">(${s.skipped} hotels/errands skipped)</span>`:''}`;
   else det=esc(JSON.stringify(s));
   return `<div class="tli" style="color:${fg}"><span class="tdot"></span><div><div class="tt"><span class="tool" style="background:${bg};color:${fg}">${esc(s.tool)}</span><span class="ep">GET ${esc(s.endpoint)}</span></div><div class="td">${det}</div></div></div>`}
 function mapSvg(pts){const W=360,H=250,P=40;const lats=pts.map(p=>p.lat),lons=pts.map(p=>p.lon);
