@@ -188,3 +188,13 @@ def test_base_url_read_from_env_at_call_time(monkeypatch):
     qloo._cached_get.cache_clear()
     qloo.search("Daft Punk", "urn:entity:artist")
     assert seen and seen[0].startswith("https://qloo.example.test/search")
+
+
+def test_video_game_uses_qloo_videogame_urn(monkeypatch):
+    from app import agent
+
+    seen = []
+    monkeypatch.setattr(agent.qloo, "search", lambda q, t, n: seen.append(t) or [{"id": "x", "name": q, "type": t}])
+    agent.resolve([{"label": "Max", "likes": [{"name": "The Witcher 3", "type": "video_game"},
+                                              {"name": "Dune", "type": "book"}]}], agent.Trace())
+    assert seen == ["urn:entity:videogame", "urn:entity:book"]

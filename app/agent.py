@@ -19,6 +19,8 @@ import httpx
 from . import qloo
 
 TYPES = {"movie", "artist", "brand", "book", "tv_show", "video_game", "podcast", "person", "place"}
+# UI type name -> Qloo entity URN where they differ (Qloo spells it "videogame")
+URN = {"video_game": "urn:entity:videogame"}
 
 
 @dataclass
@@ -36,7 +38,7 @@ def resolve(travelers: list[dict], tr: Trace) -> tuple[list[dict], list[str]]:
         for like in t.get("likes", []):
             etype = like.get("type", "movie")
             etype = etype if etype in TYPES else "movie"
-            hits = qloo.search(like["name"], f"urn:entity:{etype}", 1)
+            hits = qloo.search(like["name"], URN.get(etype, f"urn:entity:{etype}"), 1)
             tr.add("resolve_entity", endpoint="/search", query=like["name"], type=etype, found=bool(hits))
             if hits:
                 t["entities"].append(hits[0])
