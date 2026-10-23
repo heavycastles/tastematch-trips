@@ -19,7 +19,7 @@ def _strip(v):
 
 
 class Like(BaseModel):
-    name: str = Field(min_length=1, max_length=120)
+    name: str = Field(min_length=1, max_length=100)
     type: str = "movie"
     _s = field_validator("name", mode="before")(_strip)
 
@@ -52,7 +52,7 @@ class PlanIn(BaseModel):
 FIELD_HINTS = {"travelers": "Add 1–6 travelers, each with a nickname and at least one favourite.",
                "likes": "Every traveler needs at least one favourite (up to 8).",
                "label": "Every traveler needs a nickname (up to 30 characters).",
-               "name": "Favourites can't be empty (up to 120 characters).",
+               "name": "Favourites can't be empty (up to 100 characters).",
                "days": "Trips can be 1 to 5 days long.",
                "destination": "Destination is limited to 80 characters."}
 

@@ -33,8 +33,10 @@ optimise and check, not a vibe:
    friends and bores the third ranks below one everyone likes. The "least-matched traveler" is shown.
 4. **local_places** — `GET /v2/insights?filter.type=urn:entity:place&filter.location.query=<City, Region>` per traveler.
    Qloo's place graph includes hotels, condos and errands (pet stores, clinics, banks), so the agent asks for 40
-   venues and keeps the top 8 a group would actually visit, using Qloo's `urn:tag:category:place:*` tags (the trace
-   shows how many were skipped). Each stop card shows its venue type.
+   venues and keeps the top 8 a group would actually visit, using Qloo's `urn:tag:category:place:*` tags (offices,
+   salons, campuses, gyms and studios are dropped unless Qloo also tags them as a sight), plus a distance check that
+   drops outliers more than 100 km from the city's venues (the trace shows how many were skipped). Each stop card
+   shows its venue type.
 5. **cross_score_places** — every candidate stop from step 4 is scored for **every** traveler with
    `filter.entities=<all candidate stops>` + the same location, giving a traveler × stop affinity matrix.
 6. **itinerary (plan → self-check → re-plan)** — the agent acts on that matrix:
@@ -45,16 +47,19 @@ optimise and check, not a vibe:
      stops, relative to their own best option in the city, because some tastes score high everywhere) and,
      if the gap is over 5 points, re-plans once with the least-satisfied traveler first and a wider window,
      keeping the revision only if the gap shrinks. Every decision is shown in the UI ("What the agent decided").
-   - *time of day:* within each day, cafés, sights, shops and beaches go to the morning/afternoon and dinner, bars
-     and stadiums to the evening; only the slot changes (same stops, owners and scores), so fairness is untouched.
+   - *time of day:* cafés, sights, viewpoints, shops and beaches go to the morning/afternoon and dinner, bars
+     and stadiums to the evening, swapping across days when needed; only the slot changes (same stops, owners and
+     scores), so fairness is untouched. If there are more travelers than stops, the plan says who has no own pick yet.
    Each stop cites its owner's Qloo affinity, the favourites it came from, and its score for everyone else. The pitch is a deterministic summary of those facts; if
    `LLM_BASE_URL`/`LLM_API_KEY` are set, an LLM rewrites it from the same facts (not enabled on the hosted demo).
 
 **Your own destination:** type a city (e.g. *Lisbon*) and the agent resolves it with `GET /search`
 (`types=urn:entity:destination`), scores it for every traveler alongside Qloo's own candidates, and shows
 "Your destination" with its group fit next to Qloo's top pick — instead of pretending your city was the best match.
+If Qloo has no city-level affinity for your pick, the plan says "not scored by Qloo" rather than showing a fake 0.
 
-**Honest failure modes:** unknown favourites are listed and skipped; an unknown destination, duplicate nicknames
+**Honest failure modes:** unknown favourites are listed and skipped (the trace shows which Qloo entity each favourite
+matched; favourites are capped at 100 characters); an unknown destination, duplicate nicknames
 or an empty form get a plain-language message; Qloo rate limits (429, bounded back-off ≤ 12 s, honours
 `Retry-After`) and timeouts return 503/504 with a "Try again" button — never a raw stack trace or upstream payload.
 
@@ -129,7 +134,7 @@ bounded retry on HTTP 429, typed errors (rate limit / timeout / bad location / u
 ```bash
 cp .env.example .env               # QLOO_API_KEY from the hackathon key form
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q                # 48 tests (offline mock + live smoke if key present)
+.venv/bin/pytest -q                # 62 tests (offline mock + live smoke if key present)
 .venv/bin/python serve.py          # loads .env; http://localhost:8080 → "Load sample" → "Plan our trip"
 docker compose up --build          # app :8080 + n8n :5678
 ```
