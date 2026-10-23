@@ -18,7 +18,7 @@ same question for every person: how strongly do *Aziz's* tastes (Spirited Away, 
 this beach, to this restaurant — and then *Malika's*, and *Rustam's*. Fairness becomes a number the agent can
 optimise and check, not a vibe:
 
-- **Cross-domain:** a movie + a clothing brand → a surf town and a boutique hotel. That jump is Qloo's taste graph.
+- **Cross-domain:** a movie + a clothing brand → a surf town, its beach and a golf-club restaurant. That jump is Qloo's taste graph.
 - **Every candidate scored for every traveler** (`filter.entities`), for cities *and* for individual stops — so
   the agent knows not just who a stop is for, but how much everyone else will enjoy it.
 - **Verifiable:** every number on screen is a Qloo affinity, every call is in the agent trace, nothing is invented.
@@ -48,7 +48,8 @@ optimise and check, not a vibe:
      if the gap is over 5 points, re-plans once with the least-satisfied traveler first and a wider window,
      keeping the revision only if the gap shrinks. Every decision is shown in the UI ("What the agent decided").
    - *time of day:* cafés, sights, viewpoints, shops and beaches go to the morning/afternoon and dinner, bars
-     and stadiums to the evening, swapping across days when needed; only the slot changes (same stops, owners and
+     and stadiums to the evening (a night club that doesn't fit an evening goes to an afternoon, never a morning),
+     swapping across days when needed; only the slot changes (same stops, owners and
      scores), so fairness is untouched. If there are more travelers than stops, the plan says who has no own pick yet.
    Each stop cites its owner's Qloo affinity, the favourites it came from, and its score for everyone else. The pitch is a deterministic summary of those facts; if
    `LLM_BASE_URL`/`LLM_API_KEY` are set, an LLM rewrites it from the same facts (not enabled on the hosted demo).
@@ -71,7 +72,7 @@ that encodes only the group's inputs (nicknames, favourites, days, destination �
 **Copy for group chat** copies the itinerary as text. Responses are cached in memory only, never stored in the
 repo. Results are presented as aggregate affinities, not predictions about individuals (per Qloo's safe-use guide).
 
-## Live example (verified 13 Oct 2026, re-run 19 and 20 Oct with identical results)
+## Live example (verified 13 Oct 2026, re-run on the hosted demo 23 Oct 2026)
 
 Against `https://hackathon.api.qloo.com` (`X-Api-Key`). Sample group: Aziz (Spirited Away, Patagonia),
 Malika (Daft Punk, Wes Anderson), Rustam (Anthony Bourdain, Chef's Table) — all six entities resolved.
@@ -84,24 +85,26 @@ Malika (Daft Punk, Wes Anderson), Rustam (Anthony Bourdain, Chef's Table) — al
 
 Fair itinerary (2 days): Aziz ×2, Malika ×2, Rustam ×2. Since 22 Oct every stop is also scored for the whole
 group, e.g. Mita Mary — Rustam's pick (0.80) that Aziz scores 0.88 and Malika 0.80; Playa Sayulita — Malika's pick
-(0.83). Fairness self-check on the hosted demo: whole-trip enjoyment Aziz 91% · Malika 95% · Rustam 95% (gap 4 pts,
-4 stops swapped for group-friendlier options), 16 Qloo calls in ~3.8 s.
+(0.83). Fairness self-check on the hosted demo (23 Oct): whole-trip enjoyment Aziz 92% · Malika 93% · Rustam 96%
+(gap 4 pts, 3 stops swapped for group-friendlier options), 16 Qloo calls in ~4 s.
 Earlier sanitized sample (before cross-scoring): [`docs/live-sample.md`](docs/live-sample.md).
 
-## Screenshots (live Qloo API, 20 Oct 2026)
+## Screenshots (hosted demo, live Qloo API, 23 Oct 2026)
 
-Taken from the running app with a real hackathon `QLOO_API_KEY` (13 Qloo calls, plan in ~6 s) and the fictional
-sample group. Place photos are the images Qloo returns for each place.
+Taken from https://tastematch-trips.vercel.app (real hackathon `QLOO_API_KEY`, 16 Qloo calls, plan in ~4 s) with the
+fictional sample group, at 1280 px and on a 375 px phone viewport. Place photos are the images Qloo returns for each place.
 
 | Best shared match | Fairness ranking |
 |---|---|
 | ![Best shared match](docs/screenshots/04-best-match.png) | ![Fairness ranking](docs/screenshots/05-fairness-ranking.png) |
 | **Fair itinerary (Day 1)** | **Map + agent trace** |
 | ![Itinerary](docs/screenshots/06-itinerary-day1.png) | ![Map and trace](docs/screenshots/08-map-trace.png) |
-| **Fairness self-check (22 Oct)** | **Every stop scored for every traveler (22 Oct)** |
+| **Fairness self-check** | **Every stop scored for every traveler** |
 | ![Fairness self-check](docs/screenshots/10-fairness-self-check.png) | ![Stops scored for everyone](docs/screenshots/11-stops-scored-for-everyone.png) |
 | **Sample group** | **Agent at work** |
 | ![Sample group](docs/screenshots/02-sample-group.png) | ![Agent at work](docs/screenshots/03-agent-working.png) |
+| **Phone (375 px): best match** | **Phone (375 px): itinerary** |
+| ![Mobile best match](docs/screenshots/12-mobile-375-best-match.png) | ![Mobile itinerary](docs/screenshots/13-mobile-375-itinerary.png) |
 
 All screenshots: [`docs/screenshots/`](docs/screenshots/) (incl. full page `09-full-page.png`).
 
@@ -134,7 +137,7 @@ bounded retry on HTTP 429, typed errors (rate limit / timeout / bad location / u
 ```bash
 cp .env.example .env               # QLOO_API_KEY from the hackathon key form
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q                # 62 tests (offline mock + live smoke if key present)
+.venv/bin/pytest -q                # 64 tests (offline mock + live smoke if key present)
 .venv/bin/python serve.py          # loads .env; http://localhost:8080 → "Load sample" → "Plan our trip"
 docker compose up --build          # app :8080 + n8n :5678
 ```

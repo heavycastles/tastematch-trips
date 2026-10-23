@@ -58,7 +58,7 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 - **Qloo client** (`app/qloo.py`): hackathon base URL, `X-Api-Key`, in-process LRU cache, 429 retries,
   destination labels with geocode disambiguation, offline mock graph for CI and demos without a key.
 - **n8n** Telegram group workflow; **Docker Compose** for app + n8n.
-- **Tests:** 62 pytest cases covering fairness math, venue-level cross-scoring, hotel/errand/office filtering, distance outliers, time-of-day ordering across days, unscored destinations, group-aware picks, self-check/re-plan, mock planning, chosen destinations, friendly errors (422/503/504), bounded 429 retries, API routes, live response shapes, and optional live smoke.
+- **Tests:** 64 pytest cases covering fairness math, venue-level cross-scoring, hotel/errand/office filtering, stop-card tag filtering (no payment/age/parking chips), night clubs never in a morning slot, distance outliers, time-of-day ordering across days, unscored destinations, group-aware picks, self-check/re-plan, mock planning, chosen destinations, friendly errors (422/503/504), bounded 429 retries, API routes, live response shapes, and optional live smoke.
 
 ## Challenges we ran into
 
@@ -77,7 +77,7 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 - Provenance on every itinerary slot (affinity + which favourites drove the pick).
 - Full agent trace in the UI so judges can see every Qloo call.
 - An agent that checks its own plan for fairness — and re-plans when someone would enjoy the trip less.
-- 62 passing tests; works offline via mock when the key is absent.
+- 64 passing tests; works offline via mock when the key is absent.
 
 ## What we learned
 

@@ -105,10 +105,26 @@ def _affinity(entity: dict) -> float:
     return 0.0
 
 
+# Tag families that read as noise on a stop card ("18 24", "Nfc mobile payments", "Free parking lot",
+# an "Afternoon" chip on an evening stop) -- kept out of the displayed chips.
+_HIDDEN_TAG_FAMILIES = {
+    "age_range", "payments", "parking", "accessibility", "not_for_display", "place_page_attributes",
+    "pets", "planning", "service_options", "service_type", "time_of_day_fit", "noise_level", "room_type",
+    "credit_card", "collection", "sustainability_initiative",
+}
+
+
+def _tag_family(tag_id: str) -> str:
+    parts = tag_id.split(":")  # urn:tag:<family>:<source>:<slug>
+    return parts[2] if len(parts) > 3 and parts[0] == "urn" and parts[1] == "tag" else ""
+
+
 def _tag_names(entity: dict) -> list[str]:
     out = []
     for t in entity.get("tags") or []:
         if isinstance(t, dict) and t.get("name"):
+            if _tag_family(str(t.get("tag_id") or t.get("type") or t.get("id") or "")) in _HIDDEN_TAG_FAMILIES:
+                continue
             out.append(t["name"])
         elif isinstance(t, str):
             out.append(t)

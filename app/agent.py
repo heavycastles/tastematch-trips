@@ -337,7 +337,7 @@ def _slot_fit(stop: dict, slot: str) -> int:
     if slot == "evening":
         return 2 if eve else (-1 if day else 0)
     if slot == "morning":
-        return -3 if night else 2 if day else (-1 if eve else 0)
+        return -4 if night else 2 if day else (-1 if eve else 0)  # an overflow club goes to the afternoon, not 9 am
     if night:
         return -2
     return 1 if day else 0  # afternoon: sights/beaches/lunch spots are all fine

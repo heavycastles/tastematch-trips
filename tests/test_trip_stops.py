@@ -127,3 +127,21 @@ def test_stats_report_cached_qloo_calls(monkeypatch):
 def test_shops_are_daytime_and_stadiums_evening():
     assert agent._slot_fit(_p("99 Problems", "shoe_store"), "evening") == -1
     assert agent._slot_fit(_p("Banorte Stadium", "stadium"), "evening") == 2
+
+
+def test_stop_chips_skip_demographic_payment_and_time_tags():
+    entity = {"tags": [
+        {"id": "urn:tag:age_range:qloo:18_24", "name": "18 24"},
+        {"id": "urn:tag:payments:place:nfc_mobile_payments", "name": "Nfc mobile payments"},
+        {"id": "urn:tag:payments:place:price_level", "name": "Price level"},
+        {"id": "urn:tag:time_of_day_fit:qloo:afternoon", "name": "Afternoon"},
+        {"id": "urn:tag:parking:place:free_parking_lot", "name": "Free parking lot"},
+        # live /search + /v2/insights shape: the urn sits in tag_id / type, not id
+        {"tag_id": "urn:tag:credit_card:place:mastercard", "type": "urn:tag:credit_card:place", "name": "Mastercard"},
+        {"type": "urn:tag:planning:place", "name": "Accepts reservations"},
+        {"id": "urn:tag:category:place:seafood_restaurant", "name": "Seafood restaurant"},
+        {"id": "urn:tag:menu_highlight:qloo:salmon_ceviche", "name": "Salmon ceviche"},
+        {"id": "urn:tag:ambience:qloo:casual", "name": "Casual"},
+        "Surf town",
+    ]}
+    assert qloo._tag_names(entity) == ["Seafood restaurant", "Salmon ceviche", "Casual", "Surf town"]

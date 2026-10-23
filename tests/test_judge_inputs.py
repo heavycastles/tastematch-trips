@@ -153,6 +153,20 @@ def test_bars_never_land_in_the_morning_when_another_day_can_swap():
     assert sorted(x["for"] for x in out) == sorted(x["for"] for x in it)
 
 
+def test_more_nightlife_than_evenings_overflows_to_the_afternoon_not_the_morning():
+    # live Hong Kong plan (4 travelers, 3 days): 4 clubs/bars + restaurants, only 3 evenings
+    it = [_stop("Club1", "night_club", 1, "morning", "A"), _stop("Grill", "american_restaurant", 1, "afternoon", "B"),
+          _stop("Club2", "night_club", 1, "evening", "C"), _stop("Bistro", "french_restaurant", 2, "morning", "A"),
+          _stop("Canteen", "chinese_restaurant", 2, "afternoon", "C"), _stop("Bar1", "cocktail_bar", 2, "evening", "D"),
+          _stop("Peak", "scenic_spot", 3, "morning", "D"), _stop("Tapas", "spanish_restaurant", 3, "afternoon", "A"),
+          _stop("Bar2", "bar", 3, "evening", "B")]
+    out, _ = agent.arrange_trip(it)
+    night = {"Club1", "Club2", "Bar1", "Bar2"}
+    assert not [x["place"] for x in out if x["place"] in night and x["slot"] == "morning"]
+    assert sum(1 for x in out if x["place"] in night and x["slot"] == "evening") == 3
+    assert sorted((x["day"], x["slot"]) for x in out) == sorted((x["day"], x["slot"]) for x in it)
+
+
 def test_landmarks_and_viewpoints_are_daytime_stops():
     assert agent._slot_fit({"categories": ["natural_feature"]}, "evening") < 0
     assert agent._slot_fit({"categories": ["tower"]}, "morning") == 2
