@@ -15,7 +15,9 @@ import math
 import os
 import re
 import time
+import unicodedata
 from dataclasses import dataclass, field
+from difflib import SequenceMatcher
 
 import httpx
 
@@ -34,6 +36,58 @@ class Trace:
         self.steps.append({"tool": tool, **kw})
 
 
+TASTE_URNS = {URN.get(t, f"urn:entity:{t}") for t in TYPES if t != "place"}
+
+
+def _plain(s: str) -> str:
+    """'Amélie' -> 'amelie', "Chef's Table" -> 'chef s table' (accents, case and punctuation ignored)."""
+    s = "".join(c for c in unicodedata.normalize("NFKD", s or "") if not unicodedata.combining(c))
+    return " ".join(re.sub(r"[^\w]+", " ", s.casefold()).split())
+
+
+def name_fit(query: str, matched: str) -> float:
+    """How well Qloo's match reads as what the traveler typed: 1.0 same name, 0.9 one name contains the other
+    ("Amélie" in "Le Fabuleux Destin d'Amélie Poulain"), else a fuzzy ratio ("Spirted Away" ~0.96)."""
+    a, b = _plain(query), _plain(matched)
+    if not a or not b:
+        return 0.0
+    if a == b:
+        return 1.0
+    if f" {a} " in f" {b} " or f" {b} " in f" {a} ":
+        return 0.9
+    return SequenceMatcher(None, a, b).ratio()
+
+
+LOOSE = 0.6  # below this the typed-search hit is probably the wrong thing ("Studio Ghibli" as a brand -> a photo app)
+
+
+def _latin(s: str) -> bool:
+    return bool(re.search(r"[a-z]", _plain(s)))
+
+
+def _search(name: str, etype: str) -> list[dict]:
+    try:
+        return qloo.search(name, URN.get(etype, f"urn:entity:{etype}"), 1)
+    except qloo.QlooError as e:  # Qloo rejected this one query (e.g. odd input): skip it, keep the plan
+        if not 400 <= e.status < 500 or e.status == 429:
+            raise
+        return []
+
+
+def _any_type(name: str) -> dict | None:
+    """The traveler may have picked the wrong type (Studio Ghibli is an artist in Qloo, not a brand): look the name
+    up across all taste types and keep a hit only if it really is that name."""
+    try:
+        hits = qloo.search(name, None, 5)
+    except qloo.QlooError as e:
+        if not 400 <= e.status < 500 or e.status == 429:
+            raise
+        return None
+    hits = [h for h in hits if h.get("type") in TASTE_URNS and h.get("id")]
+    best = max(hits, key=lambda h: name_fit(name, h.get("name") or ""), default=None)
+    return best if best and name_fit(name, best.get("name") or "") >= 0.85 else None
+
+
 def resolve(travelers: list[dict], tr: Trace) -> tuple[list[dict], list[str]]:
     unresolved = []
     for t in travelers:
@@ -41,16 +95,21 @@ def resolve(travelers: list[dict], tr: Trace) -> tuple[list[dict], list[str]]:
         for like in t.get("likes", []):
             etype = like.get("type", "movie")
             etype = etype if etype in TYPES else "movie"
-            try:
-                hits = qloo.search(like["name"], URN.get(etype, f"urn:entity:{etype}"), 1)
-            except qloo.QlooError as e:  # Qloo rejected this one query (e.g. odd input): skip it, keep the plan
-                if not 400 <= e.status < 500 or e.status == 429:
-                    raise
-                hits = []
+            hits = _search(like["name"], etype)
+            fit = name_fit(like["name"], hits[0].get("name") or "") if hits else 0.0
+            retyped = None
+            if fit < LOOSE and _latin(like["name"]):
+                alt = _any_type(like["name"])
+                if alt and name_fit(like["name"], alt["name"]) > fit:
+                    hits, retyped = [alt], alt["type"].rsplit(":", 1)[-1]
+                    fit = name_fit(like["name"], alt["name"])
             tr.add("resolve_entity", endpoint="/search", query=like["name"], type=etype, found=bool(hits),
-                   matched=hits[0]["name"] if hits else None)
+                   matched=hits[0]["name"] if hits else None, **({"retyped": retyped} if retyped else {}))
             if hits:
-                t["entities"].append(hits[0])
+                ent = dict(hits[0])
+                if fit < 0.5 and _latin(like["name"]):
+                    ent["loose"] = like["name"]  # e.g. a translated title; shown to the group so they can check it
+                t["entities"].append(ent)
             else:
                 unresolved.append(f"{t['label']}: {like['name']}")
     return travelers, unresolved
@@ -96,13 +155,20 @@ def _near(places: list[dict]) -> tuple[list[dict], int]:
     return keep, len(places) - len(keep)
 
 
-def _stops(places: list[dict]) -> list[dict]:
+CHAINS = re.compile(r"\b(starbucks|mcdonald'?s|kfc|subway|burger king|domino'?s|pizza hut|dunkin'?|costa coffee|"
+                    r"tim hortons|7-eleven|bubba gump|taco bell|wendy'?s|popeyes|chipotle|papa john'?s|"
+                    r"carl'?s jr|five guys|krispy kreme)\b", re.I)
+
+
+def _stops(places: list[dict], size: int | None = None) -> list[dict]:
     """Keep the traveler's top visitable venues (Qloo order = affinity order); hotels, errands and venues far
-    outside the city are dropped. If a small town has nothing but hotels, fall back to what Qloo returned rather
-    than an empty day."""
+    outside the city are dropped, global chains (a Starbucks in Kyoto) only fill in if nothing else is left. If a
+    small town has nothing but hotels, fall back to what Qloo returned rather than an empty day."""
     keep = [p for p in places if visitable(p)]
+    keep = [p for p in keep if not CHAINS.search(p.get("name") or "")] + \
+        [p for p in keep if CHAINS.search(p.get("name") or "")]
     near, far = _near(keep)
-    pool = _Pool((near or places)[:POOL_SIZE])
+    pool = _Pool((near or places)[:size or POOL_SIZE])
     pool.skipped = len(places) - len(keep) if keep else 0
     pool.far = far if near else 0
     return pool
@@ -178,16 +244,23 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
         chosen["chosen"] = True
         chosen["scored"] = scored
         ranking = [r for r in ranking if r["name"] != cname]
+    if not ranking and not chosen:  # Qloo answered, but with no destinations for these tastes
+        return {"error": "no_destinations", "unresolved": unresolved,
+                "ask": "Qloo didn't return any destinations for these tastes. Add a more widely known favourite, "
+                       "or type a city in the Destination field."}
     city = shown or (ranking[0]["name"] if ranking else None)
     # Places need a location query string; prefer geocode city over neighborhood labels.
     place_location = destination or (loc_by_name.get(city) if city else None) or city
 
     pools: dict[str, list[dict]] = {}
+    # A solo traveler on a 5-day trip needs 15 own stops, not the default 8.
+    tasters = max(1, sum(1 for t in travelers if t["entities"]))
+    size = max(POOL_SIZE, math.ceil(3 * max(1, min(days, 5)) / tasters) + 2)
     for t in travelers:
         ids = [e["id"] for e in t["entities"]]
         try:
             pools[t["label"]] = (
-                _stops(qloo.insights("urn:entity:place", ids, PLACE_TAKE, location=place_location))
+                _stops(qloo.insights("urn:entity:place", ids, PLACE_TAKE, location=place_location), size)
                 if ids and place_location else []
             )
         except qloo.QlooError as e:
@@ -196,7 +269,8 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
             alt = loc_by_name.get(name_by_id.get(chosen_id, "")) if chosen_id else None
             if alt and alt != place_location:
                 place_location = alt
-                pools[t["label"]] = _stops(qloo.insights("urn:entity:place", ids, PLACE_TAKE, location=place_location))
+                pools[t["label"]] = _stops(qloo.insights("urn:entity:place", ids, PLACE_TAKE, location=place_location),
+                                            size)
             else:
                 return {"error": "destination_not_found", "unresolved": unresolved,
                         "ask": f"Qloo has no local venue data for \"{place_location}\". Try a nearby larger city, "
@@ -243,6 +317,8 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
               "ranking": ranking[:6], "itinerary": itinerary, "fair_share": fair,
               "unresolved": unresolved, "trace": tr.steps,
               "unmatched_travelers": [t["label"] for t in travelers if not t["entities"]],
+              "loose_matches": [f"{t['label']}: “{e['loose']}” → {e['name']}" for t in travelers
+                                for e in t["entities"] if e.get("loose")],
               "fairness_check": check, "decisions": decisions,
               "travelers": [{"label": t["label"], "matched": [e["name"] for e in t["entities"]],
                              "matched_detail": [{"name": e["name"], "type": (e.get("type") or "").rsplit(":", 1)[-1],
@@ -275,8 +351,9 @@ NOT_A_STOP = ("hotel", "motel", "hostel", "lodging", "accommodation", "guest_hou
               "media_company", "publisher", "agency", "recording_studio")
 # Not a sight on its own (campus, gym, wedding hall, tattoo parlour) unless Qloo also tags it as an attraction.
 SOFT_NOT_A_STOP = ("university", "college", "gym", "fitness", "wedding", "tattoo", "coworking", "event_planner",
-                   "entertainer")
-SIGHT = ("tourist_attraction", "historical_landmark", "museum", "cultural_landmark", "landmark", "historic")
+                   "entertainer", "building")  # "building": an office block or a bare street address
+SIGHT = ("tourist_attraction", "historical_landmark", "museum", "cultural_landmark", "landmark", "historic",
+         "observation_deck", "scenic_spot")
 LODGING_WORDS = re.compile(r"\b(hotel|resort|residences|suites|hostel|motel|condo\w*|apartments?|villas?|"
                            r"boarding|vacation rental)\b", re.I)
 
@@ -391,6 +468,12 @@ def _pts(v: float) -> str:
     return "under 1 pt" if n < 1 else f"within {n} pt" + ("s" if n != 1 else "")
 
 
+def _gap(v: float, limit: float) -> str:
+    """Gap in points; one decimal when rounding would hide it ("5.1 pts > 5", not "5 pts > 5")."""
+    n, lim = 100 * v, round(100 * limit)
+    return f"{n:.1f}" if round(n) == lim and abs(n - lim) > 1e-9 else f"{round(n)}"
+
+
 TIER = 0.03  # a pick counts as "the owner's top tier" within this affinity of their best remaining stop
 
 
@@ -491,9 +574,9 @@ def build_itinerary(labels, pools, matrix, likes_of, days, dest_score, max_sprea
             alt_check = _evaluate(alt, labels, norm)
             kept = alt_check["spread"] < check["spread"]
             decisions.append({"step": "revise", "text":
-                              f"Self-check: trip-enjoyment gap {round(100 * check['spread'])} pts > "
+                              f"Self-check: trip-enjoyment gap {_gap(check['spread'], max_spread)} pts > "
                               f"{round(100 * max_spread)}, {lo} enjoys the trip least — re-planned with {lo} picking "
-                              f"first and a wider group-aware window: gap {round(100 * alt_check['spread'])} pts, "
+                              f"first and a wider group-aware window: gap {_gap(alt_check['spread'], max_spread)} pts, "
                               + ("kept the revision." if kept else "no improvement, kept the original plan.")})
             if kept:
                 itinerary, check = alt, alt_check

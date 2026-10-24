@@ -85,7 +85,10 @@ def _cached_get(path: str, params: tuple, key: str) -> dict:
         if r.status_code >= 400:
             kind = "bad_location" if r.status_code == 400 and "location" in r.text else "upstream"
             raise QlooError(f"Qloo {path} {r.status_code}: {r.text[:200]}", kind, r.status_code)
-        return r.json()
+        try:
+            return r.json()
+        except ValueError as e:  # an HTML error page or truncated body instead of JSON
+            raise QlooError(f"Qloo {path} returned non-JSON ({r.status_code})", "upstream", r.status_code) from e
 
 
 def _affinity(entity: dict) -> float:
