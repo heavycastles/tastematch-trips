@@ -89,7 +89,7 @@ group, e.g. Mita Mary — Rustam's pick (0.80) that Aziz scores 0.88 and Malika 
 (gap 4 pts, 3 stops swapped for group-friendlier options), 16 Qloo calls in ~4 s.
 Earlier sanitized sample (before cross-scoring): [`docs/live-sample.md`](docs/live-sample.md).
 
-## Screenshots (hosted demo, live Qloo API, 23 Oct 2026)
+## Screenshots (hosted demo, live Qloo API, 24 Oct 2026)
 
 Taken from https://tastematch-trips.vercel.app (real hackathon `QLOO_API_KEY`, 16 Qloo calls, plan in ~4 s) with the
 fictional sample group, at 1280 px and on a 375 px phone viewport. Place photos are the images Qloo returns for each place.
