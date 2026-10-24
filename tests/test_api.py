@@ -26,3 +26,10 @@ def test_index_does_not_depend_on_cwd(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     r = c.get("/")
     assert r.status_code == 200 and "TasteMatch" in r.text
+
+
+def test_plan_button_waits_for_a_pending_sample_load():
+    # A quick "Load sample" → "Plan our trip" used to plan an empty group while /api/sample was in flight.
+    html = c.get("/").text
+    assert "if(sampleLoading)await sampleLoading;" in html
+    assert "Could not load the sample group" in html

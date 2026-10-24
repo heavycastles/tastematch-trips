@@ -137,6 +137,6 @@ UI: best match · ranking · itinerary · self-check · map · agent trace
 3. Group polls in Telegram (n8n workflow in the repo) to confirm the city
 4. Local guides for Samarkand and Tashkent
 
-**Built with:** Python · FastAPI · Qloo Taste AI (`/search`, `/v2/insights`) · Vercel · pytest (64 tests) · n8n
+**Built with:** Python · FastAPI · Qloo Taste AI (`/search`, `/v2/insights`) · Vercel · pytest (65 tests) · n8n
 
 **Try it:** https://tastematch-trips.vercel.app

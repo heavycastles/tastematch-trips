@@ -290,7 +290,13 @@ function trav(t={label:'',likes:[{name:'',type:'movie'},{name:'',type:'artist'}]
   $('tv').appendChild(d);recolor()}
 trav();trav();
 $('add').onclick=()=>{if(document.querySelectorAll('.trav').length<6)trav()};
-$('smp').onclick=async()=>{const s=await (await fetch('/api/sample')).json();$('tv').innerHTML='';s.travelers.forEach(trav);setDays(s.days);$('dest').value=''};
+/* "Plan our trip" right after "Load sample" waits for the sample instead of reporting an empty group */
+let sampleLoading=null;
+$('smp').onclick=()=>{if(sampleLoading)return sampleLoading;$('smp').disabled=true;$('st').textContent='';
+  sampleLoading=(async()=>{try{const r=await fetch('/api/sample');if(!r.ok)throw new Error(r.status);const s=await r.json();
+    $('tv').innerHTML='';s.travelers.forEach(trav);setDays(s.days);$('dest').value=''}
+  catch(e){$('st').textContent='Could not load the sample group — please try again.'}
+  finally{sampleLoading=null;$('smp').disabled=false}})();return sampleLoading};
 /* empty state */
 function emptyState(){$('out').innerHTML=`<div class="card empty">
  <svg width="150" height="92" viewBox="0 0 150 92"><circle cx="52" cy="46" r="34" fill="#0ea5a4" opacity=".18"/><circle cx="98" cy="46" r="34" fill="#7c4dff" opacity=".18"/><circle cx="75" cy="30" r="28" fill="#f08c00" opacity=".18"/><circle cx="75" cy="44" r="9" fill="#ff5a5f"/><circle cx="75" cy="44" r="16" fill="none" stroke="#ff5a5f" stroke-opacity=".35" stroke-width="2"/></svg>
@@ -307,6 +313,7 @@ function loading(){$('out').innerHTML=`<div class="card loading"><div class="sh"
   ltimer=setInterval(()=>{if(i<els.length-1){els[i].classList.replace('on','done');i++;els[i].classList.add('on')}},900)}
 /* plan */
 $('go').onclick=async()=>{
+  if(sampleLoading)await sampleLoading;
   const cards=[...document.querySelectorAll('.trav')];
   cards.forEach((d,i)=>{const lb=d.querySelector('.lbl');const has=[...d.querySelectorAll('.ln')].some(x=>x.value.trim());
     if(has&&!lb.value.trim()){lb.value='Traveler '+(i+1);d.querySelector('.av').textContent='T'}});
