@@ -60,9 +60,9 @@ optimise and check, not a vibe:
 If Qloo has no city-level affinity for your pick, the plan says "not scored by Qloo" rather than showing a fake 0.
 
 **Honest failure modes:** unknown favourites are listed and skipped (the trace shows which Qloo entity each favourite
-matched; favourites are capped at 100 characters); an unknown destination, duplicate nicknames
+matched; favourites are capped at 100 characters, and a favourite entered twice counts once); an unknown destination, duplicate nicknames
 or an empty form get a plain-language message; Qloo rate limits (429, bounded back-off ≤ 12 s, honours
-`Retry-After`) and timeouts return 503/504 with a "Try again" button — never a raw stack trace or upstream payload.
+`Retry-After`) and timeouts return 503/504 (the whole plan has a 45 s time budget, so a slow Qloo never hits the 60 s function limit) with a "Try again" button — never a raw stack trace or upstream payload.
 
 The web UI shows the best shared match (group-fit ring, per-traveler fit, matched favourites with Qloo images),
 the fairness ranking, a photo itinerary with "for whom" tags, provenance and per-traveler scores on every stop,
@@ -130,14 +130,14 @@ n8n/telegram-group-trip.json  → Telegram group bot
 ```
 
 Qloo client: `app/qloo.py` — base `https://hackathon.api.qloo.com`, header `X-Api-Key`, in-process LRU cache,
-bounded retry on HTTP 429, typed errors (rate limit / timeout / bad location / upstream). Without `QLOO_API_KEY` a built-in mock taste graph is used (`source: mock`).
+bounded retry on HTTP 429, a per-request time budget, typed errors (rate limit / timeout / bad location / upstream). Without `QLOO_API_KEY` a built-in mock taste graph is used (`source: mock`).
 
 ## Run
 
 ```bash
 cp .env.example .env               # QLOO_API_KEY from the hackathon key form
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q                # 85 tests (offline mock; live smoke runs too if a key is set)
+.venv/bin/pytest -q                # 92 tests (offline mock; live smoke runs too if a key is set)
 .venv/bin/python serve.py          # loads .env; http://localhost:8080 → "Load sample" → "Plan our trip"
 docker compose up --build          # app :8080 + n8n :5678
 ```

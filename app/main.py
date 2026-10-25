@@ -64,7 +64,7 @@ async def _security_headers(request: Request, call_next):
 FIELD_HINTS = {"travelers": "Add 1–6 travelers, each with a nickname and at least one favourite.",
                "likes": "Every traveler needs at least one favourite (up to 8).",
                "label": "Every traveler needs a nickname (up to 30 characters).",
-               "name": "Favourites can't be empty (up to 100 characters).",
+               "name": "Each favourite needs a name of 1–100 characters.",
                "days": "Trips can be 1 to 5 days long.",
                "type": "Each favourite's type must be one of the listed options (movie, artist, brand, …).",
                "destination": "Destination is limited to 80 characters."}

@@ -107,6 +107,9 @@ def resolve(travelers: list[dict], tr: Trace) -> tuple[list[dict], list[str]]:
                    matched=hits[0]["name"] if hits else None, **({"retyped": retyped} if retyped else {}))
             if hits:
                 ent = dict(hits[0])
+                if ent.get("id") and any(e.get("id") == ent["id"] for e in t["entities"]):
+                    tr.steps[-1]["duplicate"] = True  # "Spirited Away" typed twice: one taste signal, not two
+                    continue
                 if fit < 0.5 and _latin(like["name"]):
                     ent["loose"] = like["name"]  # e.g. a translated title; shown to the group so they can check it
                 t["entities"].append(ent)
@@ -176,10 +179,11 @@ def _stops(places: list[dict], size: int | None = None) -> list[dict]:
 
 def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -> dict:
     t0 = time.perf_counter()
-    misses0 = qloo._cached_get.cache_info().misses
+    qloo.start_request()
     tr = Trace()
     travelers, unresolved = resolve([dict(t) for t in travelers], tr)
-    all_ids = [e["id"] for t in travelers for e in t["entities"]]
+    # A favourite two travelers share is one signal for the group query (each traveler is still scored on it).
+    all_ids = list(dict.fromkeys(e["id"] for t in travelers for e in t["entities"]))
     if not all_ids:
         return {"error": "none_resolved", "unresolved": unresolved,
                 "ask": "I couldn't match any of those tastes in Qloo. Try a well-known movie, artist or brand."}
@@ -327,7 +331,7 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
               "source": "qloo-hackathon-api" if qloo.live() else "mock",
               "note": "Qloo results are aggregate taste affinities, not predictions about any individual."}
     result["narrative"] = narrate(result)
-    fresh = qloo._cached_get.cache_info().misses - misses0 if qloo.live() else len(tr.steps)
+    fresh = qloo.fresh_calls() if qloo.live() else len(tr.steps)
     result["stats"] = {"qloo_calls": len(tr.steps), "elapsed_ms": int((time.perf_counter() - t0) * 1000),
                        # identical Qloo requests are cached in-process, so a repeat plan answers instantly
                        "cached": max(0, len(tr.steps) - max(0, fresh))}

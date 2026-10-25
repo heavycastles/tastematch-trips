@@ -6,6 +6,7 @@ Responses are cached in-process only (never written to the repo), per Qloo's dat
 
 from __future__ import annotations
 
+import contextvars
 import os
 import time
 from functools import lru_cache
@@ -54,7 +55,34 @@ def live() -> bool:
     return bool(os.getenv("QLOO_API_KEY")) and not os.getenv("QLOO_FORCE_MOCK")
 
 
+# Per-request state (contextvars, so concurrent plans never mix): a wall-clock deadline for the whole plan, so a
+# slow or rate-limiting Qloo gets a clear JSON answer before the host kills the function (Vercel maxDuration 60 s),
+# and a count of the requests that really went to Qloo (the rest came from the in-process cache).
+_DEADLINE: contextvars.ContextVar[float | None] = contextvars.ContextVar("qloo_deadline", default=None)
+_FRESH: contextvars.ContextVar[list | None] = contextvars.ContextVar("qloo_fresh", default=None)
+
+
+def start_request(budget: float | None = None) -> None:
+    """Begin one plan: every Qloo call after this shares one time budget (QLOO_REQUEST_BUDGET, default 45 s)."""
+    budget = float(os.getenv("QLOO_REQUEST_BUDGET", "45")) if budget is None else budget
+    _DEADLINE.set(time.monotonic() + budget)
+    _FRESH.set([0])
+
+
+def fresh_calls() -> int:
+    box = _FRESH.get()
+    return box[0] if box else 0
+
+
+def _remaining() -> float | None:
+    dl = _DEADLINE.get()
+    return None if dl is None else dl - time.monotonic()
+
+
 def _get(path: str, params: tuple) -> dict:
+    left = _remaining()
+    if left is not None and left <= 0:
+        raise QlooError(f"Qloo {path}: request time budget used up", "qloo_timeout")
     return _cached_get(path, params, os.getenv("QLOO_API_KEY", ""))
 
 
@@ -63,7 +91,16 @@ def _cached_get(path: str, params: tuple, key: str) -> dict:
     timeout = float(os.getenv("QLOO_TIMEOUT", "20"))
     budget = float(os.getenv("QLOO_RETRY_BUDGET", "12"))  # max seconds spent backing off on 429s
     slept, attempt = 0.0, 0
+    box = _FRESH.get()
+    if box is not None:
+        box[0] += 1
     while True:
+        left = _remaining()
+        if left is not None:  # never wait past the plan's overall deadline
+            if left <= 0:
+                raise QlooError(f"Qloo {path}: request time budget used up", "qloo_timeout")
+            timeout = min(timeout, max(left, 1.0))
+            budget = min(budget, slept + max(0.0, left - 1.0))
         try:
             r = httpx.get(f"{base_url()}{path}", params=list(params), headers={"X-Api-Key": key}, timeout=timeout)
         except httpx.TimeoutException as e:
