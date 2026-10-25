@@ -60,7 +60,7 @@ An LLM can *say* "something for everyone" — it can't **measure** it.
 
 ---
 
-# Live result — hosted demo, 23 Oct 2026
+# Live result — hosted demo, re-checked 25 Oct 2026
 
 Sample group Aziz / Malika / Rustam · all 6 favourites matched · 16 Qloo calls in ~4 s
 
@@ -137,6 +137,6 @@ UI: best match · ranking · itinerary · self-check · map · agent trace
 3. Group polls in Telegram (n8n workflow in the repo) to confirm the city
 4. Local guides for Samarkand and Tashkent
 
-**Built with:** Python · FastAPI · Qloo Taste AI (`/search`, `/v2/insights`) · Vercel · pytest (80 tests) · n8n
+**Built with:** Python · FastAPI · Qloo Taste AI (`/search`, `/v2/insights`) · Vercel · pytest (85 tests) · n8n
 
 **Try it:** https://tastematch-trips.vercel.app

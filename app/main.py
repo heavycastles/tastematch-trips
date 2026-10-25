@@ -20,7 +20,7 @@ def _strip(v):
 
 class Like(BaseModel):
     name: str = Field(min_length=1, max_length=100)
-    type: str = "movie"
+    type: str = Field("movie", max_length=20)
     _s = field_validator("name", mode="before")(_strip)
 
 
@@ -49,11 +49,24 @@ class PlanIn(BaseModel):
         return self
 
 
+SECURITY_HEADERS = {"X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY",
+                    "Referrer-Policy": "strict-origin-when-cross-origin"}
+
+
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    resp = await call_next(request)
+    for k, v in SECURITY_HEADERS.items():
+        resp.headers.setdefault(k, v)
+    return resp
+
+
 FIELD_HINTS = {"travelers": "Add 1–6 travelers, each with a nickname and at least one favourite.",
                "likes": "Every traveler needs at least one favourite (up to 8).",
                "label": "Every traveler needs a nickname (up to 30 characters).",
                "name": "Favourites can't be empty (up to 100 characters).",
                "days": "Trips can be 1 to 5 days long.",
+               "type": "Each favourite's type must be one of the listed options (movie, artist, brand, …).",
                "destination": "Destination is limited to 80 characters."}
 
 
@@ -84,7 +97,7 @@ SAMPLE = {"days": 2, "travelers": [
                                   {"name": "Chef's Table", "type": "tv_show"}]}]}
 
 
-@app.get("/healthz")
+@app.api_route("/healthz", methods=["GET", "HEAD"])
 def healthz():
     return {"ok": True, "qloo": "live" if qloo.live() else "mock"}
 
@@ -104,6 +117,6 @@ def api_plan(body: PlanIn):
                                                        "ask": ask})
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def index():
     return FileResponse(ROOT / "static" / "index.html")

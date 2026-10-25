@@ -58,7 +58,7 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 - **Qloo client** (`app/qloo.py`): hackathon base URL, `X-Api-Key`, in-process LRU cache, 429 retries,
   destination labels with geocode disambiguation, offline mock graph for CI and demos without a key.
 - **n8n** Telegram group workflow; **Docker Compose** for app + n8n.
-- **Tests:** 80 pytest cases covering fairness math, venue-level cross-scoring, hotel/errand/office filtering, stop-card tag filtering (no payment/age/parking chips), night clubs never in a morning slot, distance outliers, time-of-day ordering across days, unscored destinations, group-aware picks, self-check/re-plan, mock planning, chosen destinations, friendly errors (422/503/504), bounded 429 retries, API routes, the sample-load race, international/typo'd favourites and wrong-type retries, loose-match flags, chain/address filtering, long solo trips, honest empty/slow/garbled Qloo errors, accessibility attributes and AA contrast, live response shapes, and optional live smoke.
+- **Tests:** 85 pytest cases covering fairness math, venue-level cross-scoring, hotel/errand/office filtering, stop-card tag filtering (no payment/age/parking chips), night clubs never in a morning slot, distance outliers, time-of-day ordering across days, unscored destinations, group-aware picks, self-check/re-plan, mock planning, chosen destinations, friendly errors (422/503/504), bounded 429 retries, API routes, the sample-load race, international/typo'd favourites and wrong-type retries, loose-match flags, chain/address filtering, long solo trips, honest empty/slow/garbled Qloo errors, accessibility attributes and AA contrast, live response shapes, HEAD requests and security headers, and optional live smoke.
 
 ## Challenges we ran into
 
@@ -77,7 +77,7 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 - Provenance on every itinerary slot (affinity + which favourites drove the pick).
 - Full agent trace in the UI so judges can see every Qloo call.
 - An agent that checks its own plan for fairness — and re-plans when someone would enjoy the trip less.
-- 80 passing tests; works offline via mock when the key is absent.
+- 85 passing tests; works offline via mock when the key is absent.
 
 ## What we learned
 
@@ -103,6 +103,6 @@ Python, FastAPI, Qloo Taste AI (`/search`, `/v2/insights`), httpx, n8n, Docker, 
 
 - Functional demo: https://tastematch-trips.vercel.app (Vercel; Render Blueprint `render.yaml` also included)
 - Public repo (MIT): https://github.com/heavycastles/tastematch-trips
-- Video: `docs/demo-v5.mp4` (2:24, recorded 24 Oct on the current version; script `docs/video-script-v5.md`, subtitles `docs/demo-v5.srt`, cover `docs/demo-v5-cover.png`); previous cuts `docs/demo-v4.mp4` (2:24, UI before the accessibility pass), `docs/demo-v3.mp4` (2:20, before the venue filter), `docs/demo-v2.mp4` (1:54); older drafts `docs/demo-live-draft.mp4`, `docs/demo-draft.mp4`
+- Video (optional for this hackathon; YouTube link pending the owner's OK): `docs/demo-v5.mp4` (2:24, recorded 24 Oct on the current version; script `docs/video-script-v5.md`, subtitles `docs/demo-v5.srt`, cover `docs/demo-v5-cover.png`); previous cuts `docs/demo-v4.mp4` (2:24, UI before the accessibility pass), `docs/demo-v3.mp4` (2:20, before the venue filter), `docs/demo-v2.mp4` (1:54); older drafts `docs/demo-live-draft.mp4`, `docs/demo-draft.mp4`
 - Slides PDF: `docs/slides.pdf` · Cover: `docs/cover.png`
 - Live sample (sanitized): `docs/live-sample.md`

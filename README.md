@@ -72,7 +72,7 @@ that encodes only the group's inputs (nicknames, favourites, days, destination �
 **Copy for group chat** copies the itinerary as text. Responses are cached in memory only, never stored in the
 repo. Results are presented as aggregate affinities, not predictions about individuals (per Qloo's safe-use guide).
 
-## Live example (verified 13 Oct 2026, re-run on the hosted demo 23 Oct 2026)
+## Live example (verified 13 Oct 2026, re-run on the hosted demo 25 Oct 2026)
 
 Against `https://hackathon.api.qloo.com` (`X-Api-Key`). Sample group: Aziz (Spirited Away, Patagonia),
 Malika (Daft Punk, Wes Anderson), Rustam (Anthony Bourdain, Chef's Table) — all six entities resolved.
@@ -85,7 +85,7 @@ Malika (Daft Punk, Wes Anderson), Rustam (Anthony Bourdain, Chef's Table) — al
 
 Fair itinerary (2 days): Aziz ×2, Malika ×2, Rustam ×2. Since 22 Oct every stop is also scored for the whole
 group, e.g. Mita Mary — Rustam's pick (0.80) that Aziz scores 0.88 and Malika 0.80; Playa Sayulita — Malika's pick
-(0.83). Fairness self-check on the hosted demo (23 Oct): whole-trip enjoyment Aziz 92% · Malika 93% · Rustam 96%
+(0.83). Fairness self-check on the hosted demo (25 Oct): whole-trip enjoyment Aziz 92% · Malika 93% · Rustam 96%
 (gap 4 pts, 3 stops swapped for group-friendlier options), 16 Qloo calls in ~4 s.
 Earlier sanitized sample (before cross-scoring): [`docs/live-sample.md`](docs/live-sample.md).
 
@@ -137,7 +137,7 @@ bounded retry on HTTP 429, typed errors (rate limit / timeout / bad location / u
 ```bash
 cp .env.example .env               # QLOO_API_KEY from the hackathon key form
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q                # 80 tests (offline mock + live smoke if key present)
+.venv/bin/pytest -q                # 85 tests (offline mock; live smoke runs too if a key is set)
 .venv/bin/python serve.py          # loads .env; http://localhost:8080 → "Load sample" → "Plan our trip"
 docker compose up --build          # app :8080 + n8n :5678
 ```
