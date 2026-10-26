@@ -54,6 +54,18 @@ def test_day_is_arranged_by_venue_type_without_changing_stops():
     assert sorted(x["for"] for x in out) == ["A", "B", "C"]
 
 
+def test_haunted_house_is_an_evening_stop():
+    # Qloo's "Trick or Treat" in Roppongi (category haunted_house, a late-night horror izakaya) was landing at 9 am
+    ghost = _p("Trick or Treat", "haunted_house")
+    assert agent._slot_fit(ghost, "morning") < 0 < agent._slot_fit(ghost, "evening")
+    day = [dict(ghost, slot="morning", day=3, **{"for": "Ana"}),
+           dict(_p("Senso-ji", "temple"), slot="afternoon", day=3, **{"for": "Ben"}),
+           dict(_p("Ramen", "ramen_restaurant"), slot="evening", day=3, **{"for": "Chen"})]
+    out, moved = agent.arrange_day(day)
+    assert moved and {x["slot"]: x["name"] for x in out}["morning"] == "Senso-ji"
+    assert {x["slot"]: x["name"] for x in out}["morning"] != "Trick or Treat"
+
+
 def test_whole_word_category_match():
     # 'spa' must not match 'spanish_restaurant'; a Spanish restaurant is a dinner spot
     assert agent._slot_fit(_p("Tapas", "spanish_restaurant"), "evening") == 2

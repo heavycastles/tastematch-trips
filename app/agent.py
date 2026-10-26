@@ -437,7 +437,8 @@ def kind(p: dict) -> str | None:
 
 
 EVENING = ("bar", "pub", "night_club", "club", "lounge", "fine_dining", "steak_house", "restaurant", "brewery",
-           "winery", "theater", "jazz", "karaoke", "cocktail", "izakaya", "music_venue", "concert", "stadium", "arena")
+           "winery", "theater", "jazz", "karaoke", "cocktail", "izakaya", "music_venue", "concert", "stadium", "arena",
+           "haunted_house")  # haunted houses / horror bars (Qloo's Tokyo "Trick or Treat") are an after-dark outing
 MORNING = ("breakfast", "cafe", "coffee", "bakery", "brunch", "market", "museum", "gallery", "park", "garden",
            "hiking", "trail", "beach", "tour", "temple", "church", "attraction", "landmark", "spa", "studio",
            "store", "shop", "boutique", "mall", "scenic_spot", "zoo", "aquarium", "water_park", "amusement_park",
