@@ -137,7 +137,7 @@ bounded retry on HTTP 429, a per-request time budget, typed errors (rate limit /
 ```bash
 cp .env.example .env               # QLOO_API_KEY from the hackathon key form
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q                # 92 tests (offline mock; live smoke runs too if a key is set)
+.venv/bin/pytest -q                # 100 tests (offline mock; live smoke runs too if a key is set)
 .venv/bin/python serve.py          # loads .env; http://localhost:8080 → "Load sample" → "Plan our trip"
 docker compose up --build          # app :8080 + n8n :5678
 ```

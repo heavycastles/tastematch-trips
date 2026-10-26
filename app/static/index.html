@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TasteMatch Trips — one trip, everyone's taste</title>
 <meta name="description" content="A fairness-aware group-travel agent on Qloo Taste AI: find the destination and itinerary that fit the whole group.">
+<meta name="theme-color" content="#1a1640">
+<meta property="og:type" content="website">
+<meta property="og:title" content="TasteMatch Trips — one trip, everyone's taste">
+<meta property="og:description" content="Each friend names a few favourites; a Qloo-powered agent finds the destination and itinerary that are fair to the whole group.">
+<meta name="twitter:card" content="summary">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23ff5a5f'/%3E%3Cpath d='M16 7c-4 0-7 3-7 7 0 5 7 11 7 11s7-6 7-11c0-4-3-7-7-7z' fill='white'/%3E%3C/svg%3E">
 <style>
 :root{
@@ -27,10 +32,10 @@ button,input,select{font:inherit;color:inherit}
 .hero:after{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1px);background-size:22px 22px;mask-image:linear-gradient(to bottom,#000,transparent 85%);pointer-events:none}
 nav{display:flex;align-items:center;gap:14px;height:68px;position:relative;z-index:1}
 .logo{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,var(--coral),var(--coral2));display:grid;place-items:center;box-shadow:0 6px 18px rgba(255,90,95,.45)}
-.brand{font-weight:800;font-size:18px;letter-spacing:-.2px}
+.brand{font-weight:800;font-size:18px;letter-spacing:-.2px;white-space:nowrap}
 .brand span{color:#ffb4a6;font-weight:700}
 .spacer{flex:1}
-.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 13px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);font-size:12.5px;font-weight:600;backdrop-filter:blur(6px)}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 13px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);font-size:12.5px;font-weight:600;backdrop-filter:blur(6px);white-space:nowrap}
 .dot{width:8px;height:8px;border-radius:50%;background:#9a96b8}
 .dot.live{background:#3ee6a8;box-shadow:0 0 0 0 rgba(62,230,168,.6);animation:pulse 2s infinite}
 @keyframes pulse{70%{box-shadow:0 0 0 8px rgba(62,230,168,0)}100%{box-shadow:0 0 0 0 rgba(62,230,168,0)}}
@@ -58,7 +63,7 @@ main.wrap{display:grid;grid-template-columns:400px 1fr;gap:24px;margin-top:-54px
 .th{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:750;font-size:14px;flex:none;box-shadow:inset 0 -2px 0 rgba(0,0,0,.12)}
 .lbl{border:0;background:transparent;font-weight:700;font-size:15px;flex:1;min-width:0;padding:4px 6px;outline:none;border-radius:8px}
-.lbl:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(91,63,214,.25);background:#fff}
+.lbl:focus-visible{outline:none;box-shadow:0 0 0 2px var(--violet),0 0 0 5px rgba(91,63,214,.18);background:#fff}
 ::placeholder{color:#8a86a3;opacity:1}
 .x{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:4px 6px;border-radius:8px}
 .x:hover{background:#f2f0f8;color:var(--ink2)}
@@ -67,18 +72,17 @@ main.wrap{display:grid;grid-template-columns:400px 1fr;gap:24px;margin-top:-54px
 .like{display:flex;gap:6px;margin-top:6px}
 .like select{appearance:none;border:1px solid var(--line);background:#f6f4fb url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2375718f' fill='none' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 9px center;border-radius:10px;padding:8px 24px 8px 10px;font-size:12.5px;font-weight:600;color:var(--ink2);width:112px;flex:none}
 .like input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:8px 11px;outline:none;background:#fff}
-.like select:focus-visible{outline:none;border-color:#a99cf0;box-shadow:0 0 0 3px rgba(91,63,214,.12)}
-.like input:focus,.opt input:focus{border-color:#a99cf0;box-shadow:0 0 0 3px rgba(91,63,214,.12)}
+/* focus ring: violet border (6:1 on white) + soft halo, so keyboard focus passes WCAG 3:1 non-text contrast */
+.like select:focus-visible,.like input:focus,.opt input:focus{outline:none;border-color:var(--violet);box-shadow:0 0 0 3px rgba(91,63,214,.2)}
 .row{display:flex;gap:8px;align-items:center}
 .opts{display:grid;grid-template-columns:auto 1fr;gap:12px;margin:14px 0 16px;align-items:end}
-.opt label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.opt label,.opt .lab{display:block;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
 .seg{display:flex;background:#f2f0f8;border-radius:11px;padding:3px}
 .seg button{border:0;background:transparent;width:34px;height:32px;border-radius:9px;font-weight:700;color:var(--muted);cursor:pointer}
 .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(22,20,46,.12)}
 .opt input{width:100%;border:1px solid var(--line);border-radius:11px;padding:8px 11px;height:38px;outline:none}
 .note{display:flex;gap:8px;color:var(--muted);font-size:12px;margin-top:12px;align-items:flex-start}
 .td{overflow-wrap:anywhere}
-#st{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;min-height:18px}
 /* results */
 #out{display:flex;flex-direction:column;gap:20px;min-width:0}
 .empty{padding:36px 34px;text-align:center}
@@ -165,8 +169,12 @@ main.wrap{display:grid;grid-template-columns:400px 1fr;gap:24px;margin-top:-54px
 .stops{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .stop{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff;display:flex;flex-direction:column;transition:transform .2s,box-shadow .2s}
 .stop:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
-.img{height:128px;background:linear-gradient(135deg,#ece9f7,#f8eef0);position:relative;display:grid;place-items:center;color:rgba(255,255,255,.95);font-weight:800;font-size:30px;text-shadow:0 2px 10px rgba(22,20,46,.18)}
-.img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.img{height:128px;background:linear-gradient(135deg,#ece9f7,#f8eef0);position:relative;display:grid;place-items:center}
+/* placeholder shown until (or instead of) the Qloo photo: initial + venue type in the traveler colour */
+.ph0{display:flex;flex-direction:column;align-items:center;gap:2px;font-weight:800;font-size:30px;line-height:1}
+.ph0 small{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;opacity:.85;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .35s}
+.img img.ld{opacity:1}
 .slot{position:absolute;left:10px;top:10px;background:rgba(22,20,46,.72);color:#fff;font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;backdrop-filter:blur(4px);z-index:1;text-transform:capitalize}
 .pin{position:absolute;right:10px;top:10px;width:24px;height:24px;border-radius:50%;color:#fff;font-size:11.5px;font-weight:800;display:grid;place-items:center;z-index:1;border:2px solid #fff}
 .sb{padding:12px 13px 13px;display:flex;flex-direction:column;gap:7px;flex:1}
@@ -227,8 +235,9 @@ main.wrap{display:grid;grid-template-columns:400px 1fr;gap:24px;margin-top:-54px
 .toast.on{opacity:1;transform:translateX(-50%)}
 footer{color:var(--muted);font-size:12px;text-align:center;padding:0 16px 34px}
 main.wrap>*{min-width:0}.lbl,.like input,#dest{width:100%;min-width:0}
+@media(max-width:420px){.bl{display:none}}
 @media(max-width:1060px){main.wrap{grid-template-columns:minmax(0,1fr)}.panel{position:static}.stops{grid-template-columns:1fr 1fr}.two,.fc{grid-template-columns:minmax(0,1fr)}}
-@media(max-width:640px){.wrap{padding:0 14px}.panel{padding:16px}.hero h1{font-size:32px;margin-top:22px}.badges .pill{font-size:11.5px;padding:6px 10px}.like select{width:96px}.opts{grid-template-columns:1fr}.errc{padding:20px 18px}.stops,.steps3{grid-template-columns:1fr}.rk{grid-template-columns:28px 1fr}.rk .gf,.rk .pt{grid-column:2}.dtop{flex-direction:column}.share{min-width:0;width:100%}}
+@media(max-width:640px){.wrap{padding:0 14px}.like input,.like select,.opt input,.lbl{font-size:16px}.like select{width:100px;padding-left:9px;padding-right:22px;background-position:right 8px center}.like input{padding:8px 9px}.x{min-width:40px;min-height:40px}.seg button{flex:1;height:36px}.brand{font-size:16.5px}.pill{padding:6px 11px}.panel{padding:16px}.hero h1{font-size:32px;margin-top:22px}.badges .pill{font-size:11.5px;padding:6px 10px}.opts{grid-template-columns:1fr}.errc{padding:20px 18px}.stops,.steps3{grid-template-columns:1fr}.rk{grid-template-columns:28px 1fr}.rk .gf,.rk .pt{grid-column:2}.dtop{flex-direction:column}.share{min-width:0;width:100%}}
 </style>
 </head>
 <body>
@@ -238,7 +247,7 @@ main.wrap>*{min-width:0}.lbl,.like input,#dest{width:100%;min-width:0}
       <div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2.5c-4 0-7 3-7 7 0 5.2 7 12 7 12s7-6.8 7-12c0-4-3-7-7-7z" fill="#fff"/><path d="M12 13.2l-2.6-2.5a1.6 1.6 0 1 1 2.6-1.9 1.6 1.6 0 1 1 2.6 1.9z" fill="#ff5a5f"/></svg></div>
       <div class="brand">TasteMatch <span>Trips</span></div>
       <div class="spacer"></div>
-      <div class="pill" id="bepill"><i class="dot" id="bedot"></i><span id="be">Qloo Taste AI</span></div>
+      <div class="pill" id="bepill"><i class="dot" id="bedot"></i><span id="be">Qloo<span class="bl"> Taste AI</span></span></div>
     </nav>
     <h1>One trip. <em>Everyone's taste.</em></h1>
     <p class="lead">Each friend names a few movies, artists or brands they love. A Qloo-powered agent finds the destination that fits the <b>whole</b> group — and an itinerary where nobody is left out.</p>
@@ -257,7 +266,7 @@ main.wrap>*{min-width:0}.lbl,.like input,#dest{width:100%;min-width:0}
       <div id="tv"></div>
       <button class="btn ghost" id="add" type="button" style="width:100%">+ Add traveler</button>
       <div class="opts">
-        <div class="opt"><label id="dayslbl">Days</label><div class="seg" id="seg" role="group" aria-labelledby="dayslbl"></div><input id="days" type="hidden" value="2"></div>
+        <div class="opt"><span class="lab" id="dayslbl">Days</span><div class="seg" id="seg" role="group" aria-labelledby="dayslbl"></div><input id="days" type="hidden" value="2"></div>
         <div class="opt"><label for="dest">Destination</label><input id="dest" placeholder="Let Qloo choose" maxlength="80" autocomplete="off"></div>
       </div>
       <button class="btn primary" id="go" type="button"><span id="golbl">Plan our trip</span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-6-6 6 6-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -279,12 +288,15 @@ const COLORS=['#0ea5a4','#7c4dff','#f08c00','#e64980','#1c7ed6','#2f9e44'];
 const DARK={'#0ea5a4':'#0b8282','#7c4dff':'#7c4dff','#f08c00':'#aa6300','#e64980':'#ca4071','#1c7ed6':'#1a76c9','#2f9e44':'#28863a'};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const safeImg=u=>typeof u==='string'&&/^https:\/\//.test(u)?u:null;
+/* Qloo's image CDN serves any width (…-420x-auto.jpg): ask for the size we draw, not a 420 px photo for a 26 px thumbnail */
+const qimg=(u,w)=>u.replace(/^(https:\/\/images\.qloo\.com\/i\/[^?#]+-)\d+x-auto(\.(?:jpe?g|png|webp))$/i,'$1'+w+'x-auto$2');
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let colorOf={};
 /* first visible character, whole (an emoji or 'Ж', never half a surrogate pair) */
 const first=s=>{s=String(s||'').trim();if(!s)return '';try{if(window.Intl&&Intl.Segmenter){const g=new Intl.Segmenter().segment(s)[Symbol.iterator]().next().value;if(g)return g.segment}}catch(e){}return [...s][0]};
 function initials(s){return esc(first(s).toUpperCase()||'?')}
 /* backend badge */
-fetch('/healthz').then(r=>r.json()).then(h=>{const live=h.qloo==='live';$('bedot').className='dot'+(live?' live':'');$('be').textContent=live?'Qloo Taste AI · live':'Qloo Taste AI · offline mock'}).catch(()=>{});
+fetch('/healthz').then(r=>r.json()).then(h=>{const live=h.qloo==='live';$('bedot').className='dot'+(live?' live':'');$('be').innerHTML='Qloo<span class="bl"> Taste AI</span> · '+(live?'live':'<span class="bl">offline </span>mock')}).catch(()=>{});
 /* days segmented control */
 for(let d=1;d<=5;d++){const b=document.createElement('button');b.textContent=d;b.type='button';b.setAttribute('aria-label',d+(d===1?' day':' days'));b.onclick=()=>setDays(d);$('seg').appendChild(b)}
 function setDays(d){$('days').value=d;[...$('seg').children].forEach((b,i)=>{b.classList.toggle('on',i+1===+d);b.setAttribute('aria-pressed',String(i+1===+d))})}
@@ -341,7 +353,7 @@ $('go').onclick=async()=>{
   if(dup){$('st').textContent='Two travelers are both called “'+travelers[low.indexOf(dup)].label+'” — give each one a different nickname.';return}
   colorOf={};cards.forEach(d=>{const l=d.querySelector('.lbl').value.trim();if(l)colorOf[l]=d.dataset.color});
   $('go').disabled=true;$('golbl').textContent='Asking Qloo…';$('st').textContent='';loading();
-  {const t=$('out').getBoundingClientRect().top;if(t<0||t>innerHeight*0.7)$('out').scrollIntoView({behavior:'smooth',block:'start'})}
+  {const t=$('out').getBoundingClientRect().top;if(t<0||t>innerHeight*0.7)$('out').scrollIntoView({behavior:RM?'auto':'smooth',block:'start'})}
   try{
     const req={travelers,days:+$('days').value,destination:$('dest').value.trim()||null};lastReq=null;
     const ac=new AbortController(),kill=setTimeout(()=>ac.abort(),70000);
@@ -373,7 +385,7 @@ function render(d){
    <div class="acts"><button class="abtn" type="button" id="shr"><span aria-hidden="true">🔗</span> Share this plan</button><button class="abtn" type="button" id="cpt"><span aria-hidden="true">📋</span> Copy for group chat</button></div></div>${ring(unscored?null:(top.group_fit||0),solo?'taste fit':'group fit')}</div>
    <div class="who">${d.travelers.map(t=>{const raw=top.per_traveler[t.label];const a=raw||0;const md=t.matched_detail||t.matched.map(n=>({name:n}));
      return `<div class="wcard"><div class="wtop"><div class="av" aria-hidden="true" style="background:${colT(t.label)};width:28px;height:28px;font-size:12px">${initials(t.label)}</div><b>${esc(t.label)}</b><small>${!t.matched.length?'no match':raw==null&&unscored?'not scored':Math.round(a*100)+'%'}</small></div>
-     <div class="thumbs">${md.slice(0,2).map(m=>`<div class="thumb">${safeImg(m.image)?`<img src="${esc(m.image)}" referrerpolicy="no-referrer" alt="" data-i="${initials(m.name)}" onerror="this.replaceWith(Object.assign(document.createElement('i'),{textContent:this.dataset.i}))">`:`<i>${initials(m.name)}</i>`}<span>${esc(m.name)}</span></div>`).join('')}</div>
+     <div class="thumbs">${md.slice(0,2).map(m=>`<div class="thumb">${safeImg(m.image)?`<img src="${esc(qimg(m.image,64))}" width="26" height="26" decoding="async" referrerpolicy="no-referrer" alt="" data-i=""${initials(m.name)}" onerror="this.replaceWith(Object.assign(document.createElement('i'),{textContent:this.dataset.i}))">`:`<i>${initials(m.name)}</i>`}<span>${esc(m.name)}</span></div>`).join('')}</div>
      <div class="mbar"><div style="width:0;background:${col(t.label)}" data-w="${Math.round(a*100)}"></div></div></div>`}).join('')}</div></div>`;
   if(d.unresolved&&d.unresolved.length)h+=`<div class="warn">Not found in Qloo (skipped, never guessed): ${esc(d.unresolved.join('; '))}</div>`;
   if(d.loose_matches&&d.loose_matches.length)h+=`<div class="warn">Qloo matched ${d.loose_matches.length===1?'this favourite':'these favourites'} under a different name — check ${d.loose_matches.length===1?'it is':'they are'} what you meant: ${esc(d.loose_matches.join('; '))}</div>`;
@@ -385,7 +397,7 @@ function render(d){
   // itinerary
   const tot=d.itinerary.length||1;
   h+=`<div class="card sec"><div class="sh"><h3>Your ${d.days||Math.max(1,...d.itinerary.map(x=>x.day))}-day itinerary</h3><span class="sub">every pick explained by a Qloo signal</span>
-   <div class="share" aria-hidden="true">${Object.entries(d.fair_share).map(([k,v])=>`<div style="flex:${v||0.0001};background:${colT(k)}">${v?esc(k)+' ×'+v:''}</div>`).join('')}</div></div><div class="days">`;
+   <span class="sr">Own picks per traveler: ${esc(Object.entries(d.fair_share).map(([k,v])=>k+' '+v).join(', '))}.</span><div class="share" aria-hidden="true">${Object.entries(d.fair_share).map(([k,v])=>`<div style="flex:${v||0.0001};background:${colT(k)}">${v?esc(k)+' ×'+v:''}</div>`).join('')}</div></div><div class="days">`;
   {const z=Object.entries(d.fair_share).filter(([k,v])=>!v).map(([k])=>k);
    if(d.itinerary.length&&z.length)h+=`<div class="warn" style="margin:0 20px 16px">${d.itinerary.length} stops for ${Object.keys(d.fair_share).length} travelers: ${esc(z.join(', '))} ${z.length===1?'has':'have'} no own pick yet (every stop is still scored for them). Add more days so everyone gets one.</div>`}
   {const want=d.days||1,got=d.itinerary.length?Math.max(...d.itinerary.map(x=>x.day)):0;
@@ -394,7 +406,7 @@ function render(d){
   const byDay={};d.itinerary.forEach((x,i)=>{x._n=i+1;(byDay[x.day]=byDay[x.day]||[]).push(x)});
   for(const [day,items] of Object.entries(byDay)){
     h+=`<div class="day"><h4>Day ${day}</h4><div class="stops">${items.map(x=>{const tags=[...new Set(x.tags||[])].slice(0,4);
-     return `<div class="stop"><div class="img" style="background:linear-gradient(135deg,${col(x.for)}22,${col(x.for)}55)"><span class="slot">${esc(x.slot)}</span><span class="pin" style="background:${colT(x.for)}"><span class="sr">Stop </span>${x._n}</span><span aria-hidden="true">${initials(x.place)}</span>${safeImg(x.image)?`<img src="${esc(x.image)}" referrerpolicy="no-referrer" loading="lazy" alt="" onerror="this.remove()">`:''}</div>
+     return `<div class="stop"><div class="img" style="background:linear-gradient(135deg,${col(x.for)}22,${col(x.for)}55)"><span class="slot">${esc(x.slot)}</span><span class="pin" style="background:${colT(x.for)}"><span class="sr">Stop </span>${x._n}</span><span class="ph0" aria-hidden="true" style="color:${colT(x.for)}">${initials(x.place)}${x.kind?`<small>${esc(x.kind)}</small>`:''}</span>${safeImg(x.image)?`<img src="${esc(qimg(x.image,420))}" srcset="${esc(qimg(x.image,300))} 300w, ${esc(qimg(x.image,420))} 420w" sizes="(max-width:640px) calc(100vw - 60px), (max-width:1060px) calc(50vw - 50px), 260px" referrerpolicy="no-referrer" loading="lazy" decoding="async" alt="" onload="this.classList.add('ld')" onerror="this.remove()">`:''}</div>
       <div class="sb"><b>${esc(x.place)}</b><div class="forrow"><span class="fp" style="background:${colT(x.for)}">for ${esc(x.for)}</span><span class="match">${Math.round(x.affinity*100)}% taste match</span></div>
       ${x.description?`<div class="desc">${esc(x.description)}</div>`:(x.address?`<div class="desc">${esc(x.address)}</div>`:'')}
       ${x.group_scores&&Object.keys(x.group_scores).length>1?`<div class="gs" title="Qloo affinity of this stop for each traveler">${Object.entries(x.group_scores).map(([k,v])=>`<span class="gsc ${k===x.for?'ownr':''}" style="${k===x.for?'color:'+colT(k):''}"><i style="background:${col(k)}"></i>${esc(k)} ${Math.round(v*100)}</span>`).join('')}</div>`:''}

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -12,6 +13,8 @@ from .agent import plan
 
 ROOT = Path(__file__).parent
 app = FastAPI(title="TasteMatch Trips", version=(ROOT.parent / "VERSION").read_text().strip())
+# Vercel's edge compresses on its own; this covers the Docker / Render deploys (the page is ~53 KB raw, ~18 KB gzipped).
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
 def _strip(v):
@@ -117,6 +120,11 @@ def api_plan(body: PlanIn):
                                                        "ask": ask})
 
 
+# The page is static: let the CDN keep it (s-maxage) so first paint doesn't wait for a cold Python function.
+# Browsers still revalidate every load (max-age=0), and a redeploy purges the Vercel edge cache.
+INDEX_CACHE = "public, max-age=0, s-maxage=600, stale-while-revalidate=86400"
+
+
 @app.api_route("/", methods=["GET", "HEAD"])
 def index():
-    return FileResponse(ROOT / "static" / "index.html")
+    return FileResponse(ROOT / "static" / "index.html", headers={"Cache-Control": INDEX_CACHE})
