@@ -10,12 +10,14 @@ trip, and re-plan once if the gap is too wide. An optional LLM writes the narrat
 
 from __future__ import annotations
 
+import contextvars
 import itertools
 import math
 import os
 import re
 import time
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 
@@ -34,6 +36,20 @@ class Trace:
 
     def add(self, tool: str, **kw):
         self.steps.append({"tool": tool, **kw})
+
+
+PARALLEL = 6  # independent per-traveler Qloo calls run side by side (a 4-person Tokyo plan: ~30 s -> ~10 s)
+
+
+def _pmap(fn, items: list) -> list:
+    """fn over items, concurrently on the live API; results (and the first error) in input order, so the trace and
+    the plan are identical to a sequential run. Each task runs in a copy of the request context (shared deadline and
+    call counter)."""
+    if len(items) < 2 or not qloo.live():
+        return [fn(x) for x in items]
+    with ThreadPoolExecutor(max_workers=min(PARALLEL, len(items))) as ex:
+        futs = [ex.submit(contextvars.copy_context().run, fn, x) for x in items]
+        return [f.result() for f in futs]
 
 
 TASTE_URNS = {URN.get(t, f"urn:entity:{t}") for t in TYPES if t != "place"}
@@ -88,21 +104,28 @@ def _any_type(name: str) -> dict | None:
     return best if best and name_fit(name, best.get("name") or "") >= 0.85 else None
 
 
+def _lookup(like: dict) -> tuple[str, list[dict], float, str | None]:
+    etype = like.get("type", "movie")
+    etype = etype if etype in TYPES else "movie"
+    hits = _search(like["name"], etype)
+    fit = name_fit(like["name"], hits[0].get("name") or "") if hits else 0.0
+    retyped = None
+    if fit < LOOSE and _latin(like["name"]):
+        alt = _any_type(like["name"])
+        if alt and name_fit(like["name"], alt["name"]) > fit:
+            hits, retyped = [alt], alt["type"].rsplit(":", 1)[-1]
+            fit = name_fit(like["name"], alt["name"])
+    return etype, hits, fit, retyped
+
+
 def resolve(travelers: list[dict], tr: Trace) -> tuple[list[dict], list[str]]:
     unresolved = []
+    likes = [like for t in travelers for like in t.get("likes", [])]
+    found = iter(_pmap(_lookup, likes))  # all /search lookups at once, then processed in the order typed
     for t in travelers:
         t["entities"] = []
         for like in t.get("likes", []):
-            etype = like.get("type", "movie")
-            etype = etype if etype in TYPES else "movie"
-            hits = _search(like["name"], etype)
-            fit = name_fit(like["name"], hits[0].get("name") or "") if hits else 0.0
-            retyped = None
-            if fit < LOOSE and _latin(like["name"]):
-                alt = _any_type(like["name"])
-                if alt and name_fit(like["name"], alt["name"]) > fit:
-                    hits, retyped = [alt], alt["type"].rsplit(":", 1)[-1]
-                    fit = name_fit(like["name"], alt["name"])
+            etype, hits, fit, retyped = next(found)
             tr.add("resolve_entity", endpoint="/search", query=like["name"], type=etype, found=bool(hits),
                    matched=hits[0]["name"] if hits else None, **({"retyped": retyped} if retyped else {}))
             if hits:
@@ -177,6 +200,23 @@ def _stops(places: list[dict], size: int | None = None) -> list[dict]:
     return pool
 
 
+SAME_CITY_KM = 15  # Qloo lists some cities twice ("Oaxaca" / "Oaxaca City" 0.03 km apart); Kyoto-Nara is 35 km
+
+
+def dedupe_cities(ranking: list[dict], coords: dict, chosen_at: tuple | None = None) -> tuple[list[dict], int]:
+    """Keep the best-ranked entry of each city: drop a destination within SAME_CITY_KM of a higher-ranked one
+    (or of the group's own pick). Entries without coordinates are always kept."""
+    kept, seen = [], [chosen_at] if chosen_at else []
+    for r in ranking:
+        here = coords.get(r["name"])
+        if here and any(_km(here, p) <= SAME_CITY_KM for p in seen):
+            continue
+        kept.append(r)
+        if here:
+            seen.append(here)
+    return kept, len(ranking) - len(kept)
+
+
 def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -> dict:
     t0 = time.perf_counter()
     qloo.start_request()
@@ -204,6 +244,7 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
     group = qloo.insights("urn:entity:destination", all_ids, 15, **dest_kw)
     tr.add("destination_affinity", endpoint="/v2/insights", filter_type="destination", traveler="group",
            signals=len(all_ids), results=len(group))
+    group_step = tr.steps[-1]
     loc_by_name: dict[str, str] = {}
     for e in group:
         if e.get("location_query"):
@@ -212,29 +253,31 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
     if chosen_id and chosen_id not in candidate_ids:
         candidate_ids.append(chosen_id)
     name_by_id = {e["id"]: e["name"] for e in group if e.get("id")}
+    coords = {e["name"]: (e["lat"], e["lon"]) for e in group if e.get("lat") is not None and e.get("lon") is not None}
 
     # Score the SAME candidate set per traveler via filter.entities (true affinities, not top-N overlap).
     per: dict[str, dict[str, float]] = {}
-    for t in travelers:
+    scored_travelers = [t for t in travelers if t["entities"]]  # nothing resolved: don't drag every city to zero
+    filtered = bool(candidate_ids and qloo.live())
+
+    def score_cities(t):
         ids = [e["id"] for e in t["entities"]]
-        if not ids:  # nothing resolved: don't let an unknown taste drag every city's fairness to zero
-            continue
-        if candidate_ids and qloo.live():
-            # Candidates already popularity-filtered; score them raw for each traveler.
-            res = qloo.insights(
-                "urn:entity:destination", ids, max(15, len(candidate_ids)),
-                filter_entities=candidate_ids,
-            )
-        else:
-            res = qloo.insights("urn:entity:destination", ids, 15, **dest_kw)
+        if filtered:  # candidates already popularity-filtered; score them raw for each traveler
+            return qloo.insights("urn:entity:destination", ids, max(15, len(candidate_ids)),
+                                 filter_entities=candidate_ids)
+        return qloo.insights("urn:entity:destination", ids, 15, **dest_kw)
+
+    for t, res in zip(scored_travelers, _pmap(score_cities, scored_travelers), strict=True):
         tr.add("destination_affinity", endpoint="/v2/insights", filter_type="destination", traveler=t["label"],
-               signals=len(ids), results=len(res), filtered=bool(candidate_ids and qloo.live()))
+               signals=len(t["entities"]), results=len(res), filtered=filtered)
         per[t["label"]] = {e["name"]: e["affinity"] for e in res}
         for e in res:
             if e.get("id"):
                 name_by_id.setdefault(e["id"], e["name"])
             if e.get("location_query"):
                 loc_by_name[e["name"]] = e["location_query"]
+            if e.get("lat") is not None and e.get("lon") is not None:
+                coords.setdefault(e["name"], (e["lat"], e["lon"]))
     ranking = fairness(per, group)
     chosen = None
     if chosen_id:
@@ -248,6 +291,9 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
         chosen["chosen"] = True
         chosen["scored"] = scored
         ranking = [r for r in ranking if r["name"] != cname]
+    ranking, merged = dedupe_cities(ranking, coords, coords.get(name_by_id.get(chosen_id, "")) if chosen_id else None)
+    if merged:  # "Mexico City" and "Distrito Federal, Mexico City" are one trip, not two options
+        group_step["merged"] = merged
     if not ranking and not chosen:  # Qloo answered, but with no destinations for these tastes
         return {"error": "no_destinations", "unresolved": unresolved,
                 "ask": "Qloo didn't return any destinations for these tastes. Add a more widely known favourite, "
@@ -260,46 +306,49 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
     # A solo traveler on a 5-day trip needs 15 own stops, not the default 8.
     tasters = max(1, sum(1 for t in travelers if t["entities"]))
     size = max(POOL_SIZE, math.ceil(3 * max(1, min(days, 5)) / tasters) + 2)
-    for t in travelers:
+    def fetch_pool(t, where):
         ids = [e["id"] for e in t["entities"]]
-        try:
-            pools[t["label"]] = (
-                _stops(qloo.insights("urn:entity:place", ids, PLACE_TAKE, location=place_location), size)
-                if ids and place_location else []
-            )
-        except qloo.QlooError as e:
-            if e.kind != "bad_location":
-                raise
-            alt = loc_by_name.get(name_by_id.get(chosen_id, "")) if chosen_id else None
-            if alt and alt != place_location:
-                place_location = alt
-                pools[t["label"]] = _stops(qloo.insights("urn:entity:place", ids, PLACE_TAKE, location=place_location),
-                                            size)
-            else:
-                return {"error": "destination_not_found", "unresolved": unresolved,
-                        "ask": f"Qloo has no local venue data for \"{place_location}\". Try a nearby larger city, "
-                               "or leave the destination empty."}
+        return _stops(qloo.insights("urn:entity:place", ids, PLACE_TAKE, location=where), size) if ids and where else []
+
+    try:
+        got = _pmap(lambda t: fetch_pool(t, place_location), travelers)
+    except qloo.QlooError as e:
+        if e.kind != "bad_location":
+            raise
+        alt = loc_by_name.get(name_by_id.get(chosen_id, "")) if chosen_id else None
+        if not alt or alt == place_location:
+            return {"error": "destination_not_found", "unresolved": unresolved,
+                    "ask": f"Qloo has no local venue data for \"{place_location}\". Try a nearby larger city, "
+                           "or leave the destination empty."}
+        place_location = alt
+        got = _pmap(lambda t: fetch_pool(t, place_location), travelers)
+    for t, pool in zip(travelers, got, strict=True):
+        pools[t["label"]] = pool
         tr.add("local_places", endpoint="/v2/insights", filter_type="place", traveler=t["label"],
-               location=place_location, results=len(pools[t["label"]]),
-               skipped=getattr(pools[t["label"]], "skipped", 0), far=getattr(pools[t["label"]], "far", 0))
+               location=place_location, results=len(pool),
+               skipped=getattr(pool, "skipped", 0), far=getattr(pool, "far", 0))
 
     # Venue-level fairness: score EVERY candidate stop for EVERY traveler (same filter.entities trick as for
     # cities), so the agent knows not only who a stop is for, but how much the rest of the group will enjoy it.
     union = list(dict.fromkeys(p["id"] for pool in pools.values() for p in pool if p.get("id")))
     matrix: dict[str, dict[str, float]] = {}
     if union and len(travelers) > 1:
-        for t in travelers:
+        def cross(t):
             ids = [e["id"] for e in t["entities"]]
             if not ids:
-                matrix[t["label"]] = {}
-                continue
+                return None
             try:
-                res = qloo.insights("urn:entity:place", ids, len(union), location=place_location,
-                                    filter_entities=union)
+                return qloo.insights("urn:entity:place", ids, len(union), location=place_location,
+                                     filter_entities=union)
             except qloo.QlooError as e:
                 if e.kind == "rate_limited":
                     raise
-                res = []
+                return []
+
+        for t, res in zip(travelers, _pmap(cross, travelers), strict=True):
+            if res is None:
+                matrix[t["label"]] = {}
+                continue
             matrix[t["label"]] = {p["id"]: p["affinity"] for p in res if p.get("id")}
             tr.add("cross_score_places", endpoint="/v2/insights", filter_type="place", traveler=t["label"],
                    location=place_location, candidates=len(union), results=len(res))

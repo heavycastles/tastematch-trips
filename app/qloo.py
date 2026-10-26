@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextvars
 import os
+import threading
 import time
 from functools import lru_cache
 from pathlib import Path
@@ -60,6 +61,7 @@ def live() -> bool:
 # and a count of the requests that really went to Qloo (the rest came from the in-process cache).
 _DEADLINE: contextvars.ContextVar[float | None] = contextvars.ContextVar("qloo_deadline", default=None)
 _FRESH: contextvars.ContextVar[list | None] = contextvars.ContextVar("qloo_fresh", default=None)
+_FRESH_LOCK = threading.Lock()
 
 
 def start_request(budget: float | None = None) -> None:
@@ -93,7 +95,8 @@ def _cached_get(path: str, params: tuple, key: str) -> dict:
     slept, attempt = 0.0, 0
     box = _FRESH.get()
     if box is not None:
-        box[0] += 1
+        with _FRESH_LOCK:  # per-traveler calls run in parallel threads
+            box[0] += 1
     while True:
         left = _remaining()
         if left is not None:  # never wait past the plan's overall deadline

@@ -11,6 +11,10 @@ and runs a fairness-aware agent over the **Qloo Taste AI** API.
 (1–6 nicknames, up to 3 favourites each, 1–5 days, optionally your own destination) and press **Plan our trip**.
 Then hit **Share this plan** — the link re-creates the same group and re-plans it live for whoever opens it.
 
+[![Best shared match for the sample group: Sayulita, group fit 78.9, with each traveler's Qloo fit](docs/screenshots/04-best-match.png)](https://tastematch-trips.vercel.app)
+
+**Demo video (2:24):** [`docs/demo-v5.mp4`](docs/demo-v5.mp4) — the hosted demo end to end on the live Qloo API.
+
 ### Why this needs Qloo (an LLM alone can't do it)
 
 An LLM can *say* "Sayulita has something for everyone". It can't **measure** it. TasteMatch Trips asks Qloo the
@@ -28,7 +32,9 @@ optimise and check, not a vibe:
 1. **resolve_entity** — `GET /search` turns each favourite into a Qloo entity (unmatched ones are reported, never guessed).
 2. **destination_affinity** — `GET /v2/insights?filter.type=urn:entity:destination&signal.interests.entities=…`
    for the whole group (with `filter.popularity.min` so tiny towns don't dominate), then once per traveler
-   with `filter.entities=<group candidates>` so every city gets a real per-traveler affinity.
+   with `filter.entities=<group candidates>` so every city gets a real per-traveler affinity. Qloo sometimes lists
+   one city twice ("Oaxaca" and "Oaxaca City", "Mexico City" and "Distrito Federal, Mexico City"); entries within
+   15 km of a higher-ranked one are merged, so the ranking shows each city once (the trace shows how many were merged).
 3. **fairness ranking** — `group_fit = 40% mean + 40% minimum + 20% group affinity`, so a city that thrills two
    friends and bores the third ranks below one everyone likes. The "least-matched traveler" is shown.
 4. **local_places** — `GET /v2/insights?filter.type=urn:entity:place&filter.location.query=<City, Region>` per traveler.
@@ -129,7 +135,7 @@ Web UI (/)  match card · fairness ranking · photo itinerary · fairness self-c
 n8n/telegram-group-trip.json  → Telegram group bot
 ```
 
-Qloo client: `app/qloo.py` — base `https://hackathon.api.qloo.com`, header `X-Api-Key`, in-process LRU cache,
+Qloo client: `app/qloo.py` — base `https://hackathon.api.qloo.com`, header `X-Api-Key`, in-process LRU cache, per-traveler calls run in parallel (up to 6 at once),
 bounded retry on HTTP 429, a per-request time budget, typed errors (rate limit / timeout / bad location / upstream). Without `QLOO_API_KEY` a built-in mock taste graph is used (`source: mock`).
 
 ## Run
@@ -137,7 +143,7 @@ bounded retry on HTTP 429, a per-request time budget, typed errors (rate limit /
 ```bash
 cp .env.example .env               # QLOO_API_KEY from the hackathon key form
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q                # 100 tests (offline mock; live smoke runs too if a key is set)
+.venv/bin/pytest -q                # 106 tests (offline mock: 105 pass + 1 live smoke skipped without a key)
 .venv/bin/python serve.py          # loads .env; http://localhost:8080 → "Load sample" → "Plan our trip"
 docker compose up --build          # app :8080 + n8n :5678
 ```
@@ -191,7 +197,8 @@ docker run --rm -p 8080:8080 -e QLOO_BASE_URL=https://hackathon.api.qloo.com tas
 
 The same FastAPI app also runs on Vercel (Hobby plan is enough) as a single Python function.
 Vercel picks up `app/main.py` automatically; `vercel.json` only sets the function time limit to 60 s
-(a live plan for three travelers makes ~16 Qloo calls and usually takes 4–8 s). Python 3.13 is pinned in `.python-version`.
+(a live plan for three travelers makes ~16 Qloo calls and usually takes 4–8 s; per-traveler calls run in parallel,
+so a group of four or more stays well inside the 45 s plan budget). Python 3.13 is pinned in `.python-version`.
 `.vercelignore` is an allow-list: only `app/`, `requirements.txt`, `VERSION` and a few small files are uploaded,
 never `.env`, tests, docs or videos.
 
