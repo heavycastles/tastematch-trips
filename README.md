@@ -143,7 +143,7 @@ bounded retry on HTTP 429, a per-request time budget, typed errors (rate limit /
 ```bash
 cp .env.example .env               # QLOO_API_KEY from the hackathon key form
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q                # 107 tests (offline mock: 106 pass + 1 live smoke skipped without a key)
+.venv/bin/pytest -q                # 108 tests (offline mock: 107 pass + 1 live smoke skipped without a key)
 .venv/bin/python serve.py          # loads .env; http://localhost:8080 → "Load sample" → "Plan our trip"
 docker compose up --build          # app :8080 + n8n :5678
 ```
@@ -156,6 +156,7 @@ Never commit `.env` or the API key.
 | Method | Path | |
 |---|---|---|
 | GET | `/healthz` | `{ok, qloo: live\|mock}` |
+| GET | `/version` | `{version, commit, qloo}` — which commit the hosted demo runs |
 | GET | `/api/sample` | demo travelers (Aziz / Malika / Rustam) |
 | POST | `/api/plan` | body: `{travelers, days, destination?}` → ranking, itinerary (Qloo image, coordinates, `group_scores` per traveler), `fairness_check`, `decisions`, trace, stats |
 
@@ -208,7 +209,7 @@ vercel login
 vercel link                                   # create/link the project once
 # set the key from your local .env without echoing it (never commit it)
 grep '^QLOO_API_KEY=' .env | cut -d= -f2- | tr -d '\n' | vercel env add QLOO_API_KEY --environment production
-vercel deploy --prod
+vercel deploy --prod -e GIT_COMMIT=$(git rev-parse --short HEAD)   # /version then reports the commit
 curl https://<your-project>.vercel.app/healthz   # {"ok":true,"qloo":"live"}
 ```
 

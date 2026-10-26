@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import re
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -12,7 +14,8 @@ from . import qloo
 from .agent import plan
 
 ROOT = Path(__file__).parent
-app = FastAPI(title="TasteMatch Trips", version=(ROOT.parent / "VERSION").read_text().strip())
+VERSION = (ROOT.parent / "VERSION").read_text().strip()
+app = FastAPI(title="TasteMatch Trips", version=VERSION)
 # Vercel's edge compresses on its own; this covers the Docker / Render deploys (the page is ~53 KB raw, ~18 KB gzipped).
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
@@ -103,6 +106,18 @@ SAMPLE = {"days": 2, "travelers": [
 @app.api_route("/healthz", methods=["GET", "HEAD"])
 def healthz():
     return {"ok": True, "qloo": "live" if qloo.live() else "mock"}
+
+
+def _commit() -> str:
+    """Short commit of the running build: GIT_COMMIT (set at deploy time), Vercel's git SHA, else "unknown"."""
+    sha = (os.getenv("GIT_COMMIT") or os.getenv("VERCEL_GIT_COMMIT_SHA") or "").strip()
+    return sha[:7] if re.fullmatch(r"[0-9a-fA-F]{7,40}", sha) else "unknown"
+
+
+@app.api_route("/version", methods=["GET", "HEAD"])
+def version():
+    """Which build is live, so a judge (or a deploy check) can match the hosted demo to a commit in the repo."""
+    return {"version": VERSION, "commit": _commit(), "qloo": "live" if qloo.live() else "mock"}
 
 
 @app.get("/api/sample")

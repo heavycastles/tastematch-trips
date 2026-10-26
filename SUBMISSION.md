@@ -58,7 +58,7 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 - **Qloo client** (`app/qloo.py`): hackathon base URL, `X-Api-Key`, in-process LRU cache, 429 retries,
   destination labels with geocode disambiguation, offline mock graph for CI and demos without a key.
 - **n8n** Telegram group workflow; **Docker Compose** for app + n8n.
-- **Tests:** 107 pytest cases covering fairness math, venue-level cross-scoring, hotel/errand/office filtering, stop-card tag filtering (no payment/age/parking chips), night clubs never in a morning slot, distance outliers, time-of-day ordering across days, unscored destinations, group-aware picks, self-check/re-plan, mock planning, chosen destinations, friendly errors (422/503/504), bounded 429 retries and a shared per-plan time budget, duplicate favourites counted once, emoji nicknames and Enter-to-submit, API routes, the sample-load race, international/typo'd favourites and wrong-type retries, loose-match flags, chain/address filtering, long solo trips, honest empty/slow/garbled Qloo errors, accessibility (labels, AA contrast, visible keyboard focus, reduced motion, no iOS input zoom), graceful Qloo image fallbacks and right-sized Qloo images, edge caching and compression, live response shapes, HEAD requests and security headers, near-duplicate cities merged, parallel per-traveler calls that keep trace order and share the time budget, and optional live smoke.
+- **Tests:** 108 pytest cases covering fairness math, venue-level cross-scoring, hotel/errand/office filtering, stop-card tag filtering (no payment/age/parking chips), night clubs never in a morning slot, distance outliers, time-of-day ordering across days, unscored destinations, group-aware picks, self-check/re-plan, mock planning, chosen destinations, friendly errors (422/503/504), bounded 429 retries and a shared per-plan time budget, duplicate favourites counted once, emoji nicknames and Enter-to-submit, API routes, the sample-load race, international/typo'd favourites and wrong-type retries, loose-match flags, chain/address filtering, long solo trips, honest empty/slow/garbled Qloo errors, accessibility (labels, AA contrast, visible keyboard focus, reduced motion, no iOS input zoom), graceful Qloo image fallbacks and right-sized Qloo images, edge caching and compression, live response shapes, HEAD requests and security headers, a /version route that reports the deployed commit, near-duplicate cities merged, parallel per-traveler calls that keep trace order and share the time budget, and optional live smoke.
 
 ## Challenges we ran into
 
@@ -77,7 +77,7 @@ Santa Fe and Ojai; fair itinerary 2×2×2. Sanitized sample in `docs/live-sample
 - Provenance on every itinerary slot (affinity + which favourites drove the pick).
 - Full agent trace in the UI so judges can see every Qloo call.
 - An agent that checks its own plan for fairness — and re-plans when someone would enjoy the trip less.
-- 107 passing tests; works offline via mock when the key is absent.
+- 108 passing tests; works offline via mock when the key is absent.
 
 ## What we learned
 
