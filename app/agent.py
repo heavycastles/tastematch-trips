@@ -455,7 +455,8 @@ def visitable(p: dict) -> bool:
 
 
 SHOP_LABELS = ("store", "shop", "boutique")
-ORG_LABELS = ("organization", "company", "corporate_office", "engineer", "broker", "wholesaler", "supplier")
+ORG_LABELS = ("organization", "company", "corporate_office", "engineer", "broker", "wholesaler", "supplier",
+              "foundation")
 
 
 def kind(p: dict) -> str | None:
@@ -464,12 +465,15 @@ def kind(p: dict) -> str | None:
     if not cats:
         return None
     specific = [c for c in cats if c != "restaurant"] or cats
-    # "Non profit organization" says who runs it, not what it is: a museum run by a non-profit reads as "Museum"
+    # "Non profit organization" says who runs it, not what it is: a museum run by a non-profit reads as "Museum".
+    # A shop label also loses to any other one: a seafood restaurant with a fish counter reads as "Seafood
+    # restaurant" (not "Fish store"), a live music venue that sells records as "Live music venue"
     specific.sort(key=lambda c: _has([c], ORG_LABELS))
     # A landmark house with a gift shop reads as what it is ("Historical landmark", not "Book store")
     sights = [c for c in specific if _has([c], SIGHT)]
     if sights and _has([specific[0]], SHOP_LABELS):
         specific = [c for c in sights if c != "tourist_attraction"] or sights
+    specific.sort(key=lambda c: _has([c], SHOP_LABELS))
     return specific[0].replace("_", " ").capitalize()
 
 
