@@ -74,6 +74,17 @@ def name_fit(query: str, matched: str) -> float:
     return SequenceMatcher(None, a, b).ratio()
 
 
+def other_name(query: str, matched: str) -> bool:
+    """Qloo returned a different, similarly named entity: every typed word is in the match, but with extra words
+    wedged in ("Michael Jordan" -> "Michael B. Jordan", an actor). Containment ("Amélie" in the full French title)
+    and exact names are not flagged."""
+    a, b = _plain(query).split(), _plain(matched).split()
+    if not a or len(b) <= len(a) or f" {' '.join(a)} " in f" {' '.join(b)} ":
+        return False
+    it = iter(b)
+    return all(w in it for w in a)
+
+
 LOOSE = 0.6  # below this the typed-search hit is probably the wrong thing ("Studio Ghibli" as a brand -> a photo app)
 
 
@@ -133,7 +144,7 @@ def resolve(travelers: list[dict], tr: Trace) -> tuple[list[dict], list[str]]:
                 if ent.get("id") and any(e.get("id") == ent["id"] for e in t["entities"]):
                     tr.steps[-1]["duplicate"] = True  # "Spirited Away" typed twice: one taste signal, not two
                     continue
-                if fit < 0.5 and _latin(like["name"]):
+                if _latin(like["name"]) and (fit < 0.5 or other_name(like["name"], ent.get("name") or "")):
                     ent["loose"] = like["name"]  # e.g. a translated title; shown to the group so they can check it
                 t["entities"].append(ent)
             else:
@@ -407,7 +418,14 @@ NOT_A_STOP = ("hotel", "motel", "hostel", "lodging", "accommodation", "guest_hou
               "psychotherapist", "psychologist", "counselor", "therapist", "make_up_artist", "beauty_salon",
               "hair_salon", "nail_salon", "barber", "subway_station", "train_station", "bus_station",
               "transit_station", "talent_agency", "consultant", "production_company", "record_company",
-              "media_company", "publisher", "agency", "recording_studio")
+              "media_company", "publisher", "agency", "recording_studio",
+              # errand shops ("Frame Dubai - Picture Framing Shop", next to a garden centre): not a trip stop
+              "picture_frame", "framing", "print_shop", "printing", "copy_shop", "hardware_store",
+              "home_improvement", "appliance", "mobile_phone", "cell_phone", "repair", "courier", "shipping",
+              "moving_company", "key_duplication",
+              # studios selling services, not visits (LA's "The Futur", a design course company)
+              "website_designer", "web_design", "graphic_designer", "interior_designer", "software", "advertising",
+              "marketing", "it_services", "computer_")
 # Not a sight on its own (campus, gym, wedding hall, tattoo parlour) unless Qloo also tags it as an attraction.
 SOFT_NOT_A_STOP = ("university", "college", "gym", "fitness", "wedding", "tattoo", "coworking", "event_planner",
                    "entertainer", "building",  # "building": an office block or a bare street address
@@ -436,6 +454,7 @@ def visitable(p: dict) -> bool:
     return not LODGING_WORDS.search(f"{p.get('name') or ''} {p.get('description') or ''}")
 
 
+SHOP_LABELS = ("store", "shop", "boutique")
 ORG_LABELS = ("organization", "company", "corporate_office", "engineer", "broker", "wholesaler", "supplier")
 
 
@@ -447,6 +466,10 @@ def kind(p: dict) -> str | None:
     specific = [c for c in cats if c != "restaurant"] or cats
     # "Non profit organization" says who runs it, not what it is: a museum run by a non-profit reads as "Museum"
     specific.sort(key=lambda c: _has([c], ORG_LABELS))
+    # A landmark house with a gift shop reads as what it is ("Historical landmark", not "Book store")
+    sights = [c for c in specific if _has([c], SIGHT)]
+    if sights and _has([specific[0]], SHOP_LABELS):
+        specific = [c for c in sights if c != "tourist_attraction"] or sights
     return specific[0].replace("_", " ").capitalize()
 
 
