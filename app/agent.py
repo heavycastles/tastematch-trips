@@ -141,6 +141,9 @@ def resolve(travelers: list[dict], tr: Trace) -> tuple[list[dict], list[str]]:
     return travelers, unresolved
 
 
+TIE = 0.0005  # affinities closer than this round to the same score: a tie, not a least-matched traveler
+
+
 def fairness(per_traveler: dict[str, dict[str, float]], group: list[dict]) -> list[dict]:
     names = {e["name"] for e in group} | {n for d in per_traveler.values() for n in d}
     gaff = {e["name"]: e["affinity"] for e in group}
@@ -150,7 +153,8 @@ def fairness(per_traveler: dict[str, dict[str, float]], group: list[dict]) -> li
         vals = list(scores.values()) or [0.0]
         mean, low = sum(vals) / len(vals), min(vals)
         fit = round(100 * (0.4 * mean + 0.4 * low + 0.2 * gaff.get(n, mean)), 1)
-        least = min(scores, key=scores.get) if scores else None
+        # Nobody is "least matched" when everyone scores the city the same (two travelers who both typed Inception)
+        least = min(scores, key=scores.get) if scores and max(vals) - low >= TIE else None
         out.append({"name": n, "group_fit": fit, "per_traveler": scores, "least_happy": least})
     out.sort(key=lambda d: (-d["group_fit"], d["name"]))
     return out
@@ -233,8 +237,10 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
         hit = qloo.search(destination, "urn:entity:destination", 1)
         tr.add("resolve_destination", endpoint="/search", query=destination, type="destination", found=bool(hit))
         if not hit:
+            hint = ("Qloo knows cities by their English names (Moscow, not Москва). " if not _latin(destination)
+                    else "")
             return {"error": "destination_not_found", "unresolved": unresolved,
-                    "ask": f"Qloo doesn't know \"{destination}\" as a destination. Try a city name such as "
+                    "ask": f"Qloo doesn't know \"{destination}\" as a destination. {hint}Try a city name such as "
                            "Lisbon or Tokyo, or leave the field empty and let the agent pick."}
         chosen_id = hit[0]["id"]
         shown = hit[0].get("name") or destination.strip()  # Qloo's spelling: "lisbon" -> "Lisbon"
@@ -404,7 +410,10 @@ NOT_A_STOP = ("hotel", "motel", "hostel", "lodging", "accommodation", "guest_hou
               "media_company", "publisher", "agency", "recording_studio")
 # Not a sight on its own (campus, gym, wedding hall, tattoo parlour) unless Qloo also tags it as an attraction.
 SOFT_NOT_A_STOP = ("university", "college", "gym", "fitness", "wedding", "tattoo", "coworking", "event_planner",
-                   "entertainer", "building")  # "building": an office block or a bare street address
+                   "entertainer", "building",  # "building": an office block or a bare street address
+                   # trade and B2B listings ("Electrical appliance wholesaler", "Port operating company", a marina
+                   # tagged "marine engineer, yacht broker"); a museum run by a company still counts via SIGHT
+                   "wholesaler", "supplier", "manufacturer", "distributor", "company", "engineer", "broker")
 SIGHT = ("tourist_attraction", "historical_landmark", "museum", "cultural_landmark", "landmark", "historic",
          "observation_deck", "scenic_spot")
 LODGING_WORDS = re.compile(r"\b(hotel|resort|residences|suites|hostel|motel|condo\w*|apartments?|villas?|"
@@ -427,12 +436,17 @@ def visitable(p: dict) -> bool:
     return not LODGING_WORDS.search(f"{p.get('name') or ''} {p.get('description') or ''}")
 
 
+ORG_LABELS = ("organization", "company", "corporate_office", "engineer", "broker", "wholesaler", "supplier")
+
+
 def kind(p: dict) -> str | None:
     """Human label for the venue type, e.g. 'Seafood restaurant' (most specific Qloo category first)."""
     cats = [c for c in (p.get("categories") or []) if c not in ("place", "food_and_drink")]
     if not cats:
         return None
     specific = [c for c in cats if c != "restaurant"] or cats
+    # "Non profit organization" says who runs it, not what it is: a museum run by a non-profit reads as "Museum"
+    specific.sort(key=lambda c: _has([c], ORG_LABELS))
     return specific[0].replace("_", " ").capitalize()
 
 
@@ -672,7 +686,9 @@ def narrate(r: dict) -> str:
             f" (fit {top['group_fit']})." if top else ".")
     else:
         base = (f"{dest} is the best shared match"
-                + (f" (group fit {top['group_fit']}; least-matched traveler: {top['least_happy']})" if top else "")
+                + ((f" (group fit {top['group_fit']}; least-matched traveler: {top['least_happy']})"
+                    if top.get("least_happy") else f" (group fit {top['group_fit']}, an equal fit for everyone)")
+                   if top else "")
                 + ".")
     if r["itinerary"] and not solo:
         own = [f"{k} ×{v}" for k, v in fs.items() if v]
