@@ -542,6 +542,14 @@ def _gap(v: float, limit: float) -> str:
     return f"{n:.1f}" if round(n) == lim and abs(n - lim) > 1e-9 else f"{round(n)}"
 
 
+AFFINITY_BANDS = ((0.85, "Very high"), (0.70, "High"), (0.50, "Moderate"))
+
+
+def affinity_band(score: float) -> str:
+    """Word for a per-entity Qloo affinity, so the explanation never calls a 0.55 'high'."""
+    return next((word for floor, word in AFFINITY_BANDS if score >= floor), "Low")
+
+
 TIER = 0.03  # a pick counts as "the owner's top tier" within this affinity of their best remaining stop
 
 
@@ -619,7 +627,7 @@ def build_itinerary(labels, pools, matrix, likes_of, days, dest_score, max_sprea
                 aff = scores.get(lbl) or pick["affinity"]
                 others = [lb for lb in labels if lb != lbl and scores.get(lb)]
                 also = max(others, key=lambda lb: scores[lb]) if others else None
-                why = f"High Qloo affinity ({aff:.2f}) with {lbl}'s tastes: {likes_of.get(lbl, '')}"
+                why = f"{affinity_band(aff)} Qloo affinity ({aff:.2f}) with {lbl}'s tastes: {likes_of.get(lbl, '')}"
                 if also:
                     why += f"; {also} scores it {round(100 * scores[also])}% too"
                 itinerary.append({"day": d, "slot": s, "place": pick["name"], "id": pick.get("id"), "for": lbl,

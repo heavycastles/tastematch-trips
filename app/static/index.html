@@ -411,7 +411,7 @@ function render(d){
       ${x.description?`<div class="desc">${esc(x.description)}</div>`:(x.address?`<div class="desc">${esc(x.address)}</div>`:'')}
       ${x.group_scores&&Object.keys(x.group_scores).length>1?`<div class="gs" title="Qloo affinity of this stop for each traveler">${Object.entries(x.group_scores).map(([k,v])=>`<span class="gsc ${k===x.for?'ownr':''}" style="${k===x.for?'color:'+colT(k):''}"><i style="background:${col(k)}"></i>${esc(k)} ${Math.round(v*100)}</span>`).join('')}</div>`:''}
       <div class="tags">${x.kind?`<span class="tag kind" title="Venue type (Qloo category)">${esc(x.kind)}</span>`:''}${tags.filter(t=>!x.kind||t.toLowerCase()!==x.kind.toLowerCase()).slice(0,x.kind?3:4).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
-      <div class="why"><b>Why:</b> ${esc(x.why.replace(/^High Qloo affinity \([0-9.]+\) with /,'Qloo affinity with '))}</div></div></div>`}).join('')}</div></div>`}
+      <div class="why"><b>Why:</b> ${esc(x.why.replace(/^(Very high|High|Moderate|Low) Qloo affinity \([0-9.]+\) with /,'$1 Qloo affinity with '))}</div></div></div>`}).join('')}</div></div>`}
   h+=`</div></div>`;
   h+=fairCard(d,labels);
   // map + trace
