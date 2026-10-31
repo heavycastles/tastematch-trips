@@ -7,6 +7,7 @@ Responses are cached in-process only (never written to the repo), per Qloo's dat
 from __future__ import annotations
 
 import contextvars
+import math
 import os
 import threading
 import time
@@ -61,6 +62,8 @@ def live() -> bool:
 # and a count of the requests that really went to Qloo (the rest came from the in-process cache).
 _DEADLINE: contextvars.ContextVar[float | None] = contextvars.ContextVar("qloo_deadline", default=None)
 _FRESH: contextvars.ContextVar[list | None] = contextvars.ContextVar("qloo_fresh", default=None)
+_LOOKUPS: contextvars.ContextVar[list | None] = contextvars.ContextVar("qloo_lookups", default=None)
+_ATTEMPTS: contextvars.ContextVar[list | None] = contextvars.ContextVar("qloo_attempts", default=None)
 _FRESH_LOCK = threading.Lock()
 
 
@@ -69,10 +72,22 @@ def start_request(budget: float | None = None) -> None:
     budget = float(os.getenv("QLOO_REQUEST_BUDGET", "45")) if budget is None else budget
     _DEADLINE.set(time.monotonic() + budget)
     _FRESH.set([0])
+    _LOOKUPS.set([0])
+    _ATTEMPTS.set([0])
 
 
 def fresh_calls() -> int:
     box = _FRESH.get()
+    return box[0] if box else 0
+
+
+def cached_calls() -> int:
+    box = _LOOKUPS.get()
+    return max(0, (box[0] if box else 0) - fresh_calls())
+
+
+def http_attempts() -> int:
+    box = _ATTEMPTS.get()
     return box[0] if box else 0
 
 
@@ -85,6 +100,10 @@ def _get(path: str, params: tuple) -> dict:
     left = _remaining()
     if left is not None and left <= 0:
         raise QlooError(f"Qloo {path}: request time budget used up", "qloo_timeout")
+    box = _LOOKUPS.get()
+    if box is not None:
+        with _FRESH_LOCK:
+            box[0] += 1
     return _cached_get(path, params, os.getenv("QLOO_API_KEY", ""))
 
 
@@ -105,6 +124,10 @@ def _cached_get(path: str, params: tuple, key: str) -> dict:
             timeout = min(timeout, max(left, 1.0))
             budget = min(budget, slept + max(0.0, left - 1.0))
         try:
+            attempts = _ATTEMPTS.get()
+            if attempts is not None:
+                with _FRESH_LOCK:
+                    attempts[0] += 1
             r = httpx.get(f"{base_url()}{path}", params=list(params), headers={"X-Api-Key": key}, timeout=timeout)
         except httpx.TimeoutException as e:
             raise QlooError(f"Qloo {path} timed out after {timeout:.0f}s", "qloo_timeout") from e
@@ -131,21 +154,22 @@ def _cached_get(path: str, params: tuple, key: str) -> dict:
             raise QlooError(f"Qloo {path} returned non-JSON ({r.status_code})", "upstream", r.status_code) from e
 
 
-def _affinity(entity: dict) -> float:
-    q = entity.get("query") or {}
-    for key in ("affinity", "rank", "score"):
-        if q.get(key) is not None:
+def _affinity(entity: dict) -> float | None:
+    q = entity.get("query")
+    q = q if isinstance(q, dict) else {}
+    # Rank and popularity are different measures, not taste affinities.
+    for source in (q, entity):
+        for key in ("affinity", "score"):
+            value = source.get(key)
+            if isinstance(value, bool):
+                continue
             try:
-                return float(q[key])
-            except (TypeError, ValueError):
-                pass
-    for key in ("affinity", "score", "popularity"):
-        if entity.get(key) is not None:
-            try:
-                return float(entity[key])
-            except (TypeError, ValueError):
-                pass
-    return 0.0
+                score = float(value)
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if math.isfinite(score) and 0.0 <= score <= 1.0:
+                return score
+    return None
 
 
 # Tag families that read as noise on a stop card ("18 24", "Nfc mobile payments", "Free parking lot",
@@ -310,7 +334,8 @@ def insights(
     results = data.get("results") or {}
     ents = results.get("entities", []) if isinstance(results, dict) else results
     as_dest = filter_type == "urn:entity:destination"
-    return [_parse_entity(e, as_destination=as_dest) for e in ents]
+    parsed = [_parse_entity(e, as_destination=as_dest) for e in ents]
+    return [e for e in parsed if e["affinity"] is not None]
 
 
 # ------------------------------------------------------------------------ mock

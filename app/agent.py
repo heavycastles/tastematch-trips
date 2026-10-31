@@ -92,6 +92,11 @@ def _latin(s: str) -> bool:
     return bool(re.search(r"[a-z]", _plain(s)))
 
 
+def _has_id(entity: dict) -> bool:
+    eid = entity.get("id")
+    return isinstance(eid, str) and bool(eid.strip())
+
+
 def _search(name: str, etype: str) -> list[dict]:
     try:
         return qloo.search(name, URN.get(etype, f"urn:entity:{etype}"), 1)
@@ -110,7 +115,7 @@ def _any_type(name: str) -> dict | None:
         if not 400 <= e.status < 500 or e.status == 429:
             raise
         return None
-    hits = [h for h in hits if h.get("type") in TASTE_URNS and h.get("id")]
+    hits = [h for h in hits if h.get("type") in TASTE_URNS and _has_id(h)]
     best = max(hits, key=lambda h: name_fit(name, h.get("name") or ""), default=None)
     return best if best and name_fit(name, best.get("name") or "") >= 0.85 else None
 
@@ -118,7 +123,7 @@ def _any_type(name: str) -> dict | None:
 def _lookup(like: dict) -> tuple[str, list[dict], float, str | None]:
     etype = like.get("type", "movie")
     etype = etype if etype in TYPES else "movie"
-    hits = _search(like["name"], etype)
+    hits = [hit for hit in _search(like["name"], etype) if _has_id(hit)]
     fit = name_fit(like["name"], hits[0].get("name") or "") if hits else 0.0
     retyped = None
     if fit < LOOSE and _latin(like["name"]):
@@ -156,24 +161,33 @@ TIE = 0.0005  # affinities closer than this round to the same score: a tie, not 
 
 
 def fairness(per_traveler: dict[str, dict[str, float]], group: list[dict]) -> list[dict]:
-    names = {e["name"] for e in group} | {n for d in per_traveler.values() for n in d}
-    gaff = {e["name"]: e["affinity"] for e in group}
+    keys = {e.get("id") or e["name"] for e in group} | {n for d in per_traveler.values() for n in d}
+    gaff = {(e.get("id") or e["name"]): e["affinity"] for e in group}
+    display = {(e.get("id") or e["name"]): e["name"] for e in group}
+    ids = {e["id"] for e in group if e.get("id")}
     out = []
-    for n in names:
-        scores = {lbl: d.get(n, 0.0) for lbl, d in per_traveler.items()}
+    for n in keys:
+        # Rank only cities with an actual group score and every traveler's score.
+        if n not in gaff or not per_traveler or any(n not in row for row in per_traveler.values()):
+            continue
+        scores = {lbl: d[n] for lbl, d in per_traveler.items()}
         vals = list(scores.values()) or [0.0]
         mean, low = sum(vals) / len(vals), min(vals)
-        fit = round(100 * (0.4 * mean + 0.4 * low + 0.2 * gaff.get(n, mean)), 1)
+        fit = round(100 * (0.4 * mean + 0.4 * low + 0.2 * gaff[n]), 1)
         # Nobody is "least matched" when everyone scores the city the same (two travelers who both typed Inception)
         least = min(scores, key=scores.get) if scores and max(vals) - low >= TIE else None
-        out.append({"name": n, "group_fit": fit, "per_traveler": scores, "least_happy": least})
-    out.sort(key=lambda d: (-d["group_fit"], d["name"]))
+        row = {"name": display[n], "group_fit": fit, "per_traveler": scores, "least_happy": least}
+        if n in ids:
+            row["id"] = n
+        out.append(row)
+    out.sort(key=lambda d: (-d["group_fit"], d["name"], d.get("id", "")))
     return out
 
 
 class _Pool(list):
     skipped = 0
     far = 0
+    fallback = False
 
 
 FAR_KM = 100  # a city trip shouldn't send the group to a venue hours away (e.g. Niagara Falls in a NYC plan)
@@ -212,6 +226,7 @@ def _stops(places: list[dict], size: int | None = None) -> list[dict]:
     pool = _Pool((near or places)[:size or POOL_SIZE])
     pool.skipped = len(places) - len(keep) if keep else 0
     pool.far = far if near else 0
+    pool.fallback = bool(places and not near)
     return pool
 
 
@@ -223,7 +238,7 @@ def dedupe_cities(ranking: list[dict], coords: dict, chosen_at: tuple | None = N
     (or of the group's own pick). Entries without coordinates are always kept."""
     kept, seen = [], [chosen_at] if chosen_at else []
     for r in ranking:
-        here = coords.get(r["name"])
+        here = coords.get(r.get("id") or r["name"])
         if here and any(_km(here, p) <= SAME_CITY_KM for p in seen):
             continue
         kept.append(r)
@@ -253,6 +268,10 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
             return {"error": "destination_not_found", "unresolved": unresolved,
                     "ask": f"Qloo doesn't know \"{destination}\" as a destination. {hint}Try a city name such as "
                            "Lisbon or Tokyo, or leave the field empty and let the agent pick."}
+        if not _has_id(hit[0]):
+            return {"error": "destination_not_found", "unresolved": unresolved,
+                    "ask": f"Qloo could not identify \"{destination}\". Try a different city name or leave "
+                           "the destination field empty."}
         chosen_id = hit[0]["id"]
         shown = hit[0].get("name") or destination.strip()  # Qloo's spelling: "lisbon" -> "Lisbon"
 
@@ -263,14 +282,18 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
            signals=len(all_ids), results=len(group))
     group_step = tr.steps[-1]
     loc_by_name: dict[str, str] = {}
+    loc_by_id: dict[str, str] = {}
     for e in group:
         if e.get("location_query"):
             loc_by_name[e["name"]] = e["location_query"]
+            if e.get("id"):
+                loc_by_id[e["id"]] = e["location_query"]
     candidate_ids = [e["id"] for e in group if e.get("id")]
     if chosen_id and chosen_id not in candidate_ids:
         candidate_ids.append(chosen_id)
     name_by_id = {e["id"]: e["name"] for e in group if e.get("id")}
-    coords = {e["name"]: (e["lat"], e["lon"]) for e in group if e.get("lat") is not None and e.get("lon") is not None}
+    coords = {e["id"]: (e["lat"], e["lon"]) for e in group
+              if e.get("id") and e.get("lat") is not None and e.get("lon") is not None}
 
     # Score the SAME candidate set per traveler via filter.entities (true affinities, not top-N overlap).
     per: dict[str, dict[str, float]] = {}
@@ -287,37 +310,45 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
     for t, res in zip(scored_travelers, _pmap(score_cities, scored_travelers), strict=True):
         tr.add("destination_affinity", endpoint="/v2/insights", filter_type="destination", traveler=t["label"],
                signals=len(t["entities"]), results=len(res), filtered=filtered)
-        per[t["label"]] = {e["name"]: e["affinity"] for e in res}
         for e in res:
             if e.get("id"):
                 name_by_id.setdefault(e["id"], e["name"])
+            name = name_by_id.get(e.get("id"), e["name"])
             if e.get("location_query"):
-                loc_by_name[e["name"]] = e["location_query"]
-            if e.get("lat") is not None and e.get("lon") is not None:
-                coords.setdefault(e["name"], (e["lat"], e["lon"]))
+                loc_by_name.setdefault(name, e["location_query"])
+                if e.get("id"):
+                    loc_by_id.setdefault(e["id"], e["location_query"])
+            if e.get("id") and e.get("lat") is not None and e.get("lon") is not None:
+                coords.setdefault(e["id"], (e["lat"], e["lon"]))
+        per[t["label"]] = {e["id"]: e["affinity"] for e in res if e.get("id")}
     ranking = fairness(per, group)
+    city_ids = {e.get("id") or e["name"] for e in group} | {n for row in per.values() for n in row}
+    missing_cities = len(city_ids) - len(ranking)
+    if missing_cities:
+        group_step["unscored"] = missing_cities
     chosen = None
     if chosen_id:
-        cname = name_by_id.get(chosen_id)
-        chosen = next((dict(r) for r in ranking if r["name"] == cname), None)
-        scored = chosen is not None and any(chosen["per_traveler"].values())
-        if not scored:  # Qloo has no affinity for this city at all: say so instead of showing a fake 0.0
-            chosen = {"name": shown, "group_fit": None, "least_happy": None,
+        shown = name_by_id.get(chosen_id) or shown  # Prefer the disambiguated insight label, when available.
+        chosen = next((dict(r) for r in ranking if r.get("id") == chosen_id), None)
+        scored = chosen is not None
+        if not scored:  # At least one group or traveler affinity is missing; do not show a fake fit.
+            chosen = {"id": chosen_id, "name": shown, "group_fit": None, "least_happy": None,
                       "per_traveler": {t["label"]: None for t in travelers if t["entities"]}}
         chosen["name"] = shown
         chosen["chosen"] = True
         chosen["scored"] = scored
-        ranking = [r for r in ranking if r["name"] != cname]
-    ranking, merged = dedupe_cities(ranking, coords, coords.get(name_by_id.get(chosen_id, "")) if chosen_id else None)
+        ranking = [r for r in ranking if r.get("id") != chosen_id]
+    ranking, merged = dedupe_cities(ranking, coords, coords.get(chosen_id) if chosen_id else None)
     if merged:  # "Mexico City" and "Distrito Federal, Mexico City" are one trip, not two options
         group_step["merged"] = merged
     if not ranking and not chosen:  # Qloo answered, but with no destinations for these tastes
         return {"error": "no_destinations", "unresolved": unresolved,
-                "ask": "Qloo didn't return any destinations for these tastes. Add a more widely known favourite, "
-                       "or type a city in the Destination field."}
+                "ask": "Qloo didn't return complete group and individual scores for every traveler. "
+                       "Add a more widely known favourite, or type a city in the Destination field."}
     city = shown or (ranking[0]["name"] if ranking else None)
+    city_id = chosen_id or (ranking[0].get("id") if ranking else None)
     # Places need a location query string; prefer geocode city over neighborhood labels.
-    place_location = destination or (loc_by_name.get(city) if city else None) or city
+    place_location = loc_by_id.get(city_id) or destination or (loc_by_name.get(city) if city else None) or city
 
     pools: dict[str, list[dict]] = {}
     # A solo traveler on a 5-day trip needs 15 own stops, not the default 8.
@@ -332,18 +363,15 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
     except qloo.QlooError as e:
         if e.kind != "bad_location":
             raise
-        alt = loc_by_name.get(name_by_id.get(chosen_id, "")) if chosen_id else None
-        if not alt or alt == place_location:
-            return {"error": "destination_not_found", "unresolved": unresolved,
-                    "ask": f"Qloo has no local venue data for \"{place_location}\". Try a nearby larger city, "
-                           "or leave the destination empty."}
-        place_location = alt
-        got = _pmap(lambda t: fetch_pool(t, place_location), travelers)
+        return {"error": "destination_not_found", "unresolved": unresolved,
+                "ask": f"Qloo has no local venue data for \"{place_location}\". Try a nearby larger city, "
+                       "or leave the destination empty."}
     for t, pool in zip(travelers, got, strict=True):
         pools[t["label"]] = pool
         tr.add("local_places", endpoint="/v2/insights", filter_type="place", traveler=t["label"],
                location=place_location, results=len(pool),
-               skipped=getattr(pool, "skipped", 0), far=getattr(pool, "far", 0))
+               skipped=getattr(pool, "skipped", 0), far=getattr(pool, "far", 0),
+               fallback=getattr(pool, "fallback", False))
 
     # Venue-level fairness: score EVERY candidate stop for EVERY traveler (same filter.entities trick as for
     # cities), so the agent knows not only who a stop is for, but how much the rest of the group will enjoy it.
@@ -397,10 +425,9 @@ def plan(travelers: list[dict], days: int = 2, destination: str | None = None) -
               "source": "qloo-hackathon-api" if qloo.live() else "mock",
               "note": "Qloo results are aggregate taste affinities, not predictions about any individual."}
     result["narrative"] = narrate(result)
-    fresh = qloo.fresh_calls() if qloo.live() else len(tr.steps)
-    result["stats"] = {"qloo_calls": len(tr.steps), "elapsed_ms": int((time.perf_counter() - t0) * 1000),
-                       # identical Qloo requests are cached in-process, so a repeat plan answers instantly
-                       "cached": max(0, len(tr.steps) - max(0, fresh))}
+    result["stats"] = {"tool_steps": len(tr.steps), "qloo_calls": qloo.http_attempts() if qloo.live() else 0,
+                       "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+                       "cached": qloo.cached_calls() if qloo.live() else 0}
     return result
 
 
@@ -629,6 +656,9 @@ def build_itinerary(labels, pools, matrix, likes_of, days, dest_score, max_sprea
     days = max(1, min(days, 5))
     decisions: list[dict] = []
     norm = _norm(matrix)
+    candidate_ids = {p.get("id") for lb in labels for p in pools.get(lb, [])}
+    complete_matrix = bool(candidate_ids) and None not in candidate_ids and all(
+        all(pid in matrix.get(lb, {}) for pid in candidate_ids) for lb in labels)
     # Compensation: whoever the destination fits least picks first (gets the extra slot when slots don't divide).
     order = sorted(labels, key=lambda lb: (dest_score.get(lb, 0.0), labels.index(lb)))
     if len(labels) > 1 and dest_score:
@@ -643,15 +673,18 @@ def build_itinerary(labels, pools, matrix, likes_of, days, dest_score, max_sprea
             for s in SLOTS:
                 lbl = order[i % len(order)]
                 i += 1
-                pick, swapped = _choose(lbl, pools.get(lbl, []), used, norm, labels, tier, running)
+                # Unknown cross-scores must not influence which of the owner's stops is chosen.
+                compare_labels = labels if complete_matrix else [lbl]
+                pick, swapped = _choose(lbl, pools.get(lbl, []), used, norm, compare_labels, tier, running)
                 if not pick:
                     continue
                 swaps += swapped
                 used.add(pick["name"])
                 for lb in labels:
                     running[lb] += norm.get(lb, {}).get(pick.get("id"), 0.0)
-                scores = {lb: round(matrix.get(lb, {}).get(pick.get("id"), 0.0), 3) for lb in labels}
-                aff = scores.get(lbl) or pick["affinity"]
+                scores = {lb: round(matrix[lb][pick["id"]], 3) for lb in labels
+                          if pick.get("id") is not None and pick["id"] in matrix.get(lb, {})}
+                aff = scores.get(lbl, pick["affinity"])
                 others = [lb for lb in labels if lb != lbl and scores.get(lb)]
                 also = max(others, key=lambda lb: scores[lb]) if others else None
                 why = f"{affinity_band(aff)} Qloo affinity ({aff:.2f}) with {lbl}'s tastes: {likes_of.get(lbl, '')}"
@@ -666,8 +699,15 @@ def build_itinerary(labels, pools, matrix, likes_of, days, dest_score, max_sprea
         return itinerary, swaps
 
     itinerary, swaps = run(TIER, order)
-    check = _evaluate(itinerary, labels, norm)
-    if len(labels) > 1 and any(matrix.get(lb) for lb in labels):
+    selected_complete = bool(itinerary) and all(
+        x.get("id") is not None and all(x["id"] in matrix.get(lb, {}) for lb in labels) for x in itinerary)
+    check_available = selected_complete and complete_matrix
+    check = (_evaluate(itinerary, labels, norm) if check_available
+             else {"trip_enjoyment": {}, "spread": None, "least_satisfied": None})
+    if len(labels) > 1 and itinerary and not complete_matrix:
+        decisions.append({"step": "incomplete_scores", "text": "Qloo did not score every candidate stop for "
+                          "every traveler, so group-aware picks and re-planning are unavailable."})
+    if len(labels) > 1 and check_available:
         if swaps:
             decisions.append({"step": "group_aware", "text": f"{swaps} stop(s) swapped for an equally-loved option "
                               "(within 3 points for its owner) that helps whoever in the group was furthest behind."})
@@ -692,8 +732,8 @@ def build_itinerary(labels, pools, matrix, likes_of, days, dest_score, max_sprea
         decisions.append({"step": "time_of_day", "text": f"Moved {moved} stop(s) to a better time of day: cafés, "
                           "sights and beaches by day, dinner and bars in the evening (same stops, same scores)."})
     check["own_picks"] = {lb: sum(1 for x in itinerary if x["for"] == lb) for lb in labels}
-    check["scored_for_everyone"] = bool(itinerary) and all(
-        all(x["id"] in matrix.get(lb, {}) for lb in labels) for x in itinerary if x.get("id"))
+    check["scored_for_everyone"] = selected_complete
+    check["available"] = check_available
     return itinerary, check, decisions
 
 
@@ -707,8 +747,10 @@ def narrate(r: dict) -> str:
     solo = len(fs) == 1
     ch = r.get("chosen")
     dest = r["destination"]
+    fc = r.get("fairness_check") or {}
     if ch and ch.get("scored") is False:
-        base = (f"{dest} (your pick): Qloo doesn't score {dest} against these tastes, so there is no city-level "
+        base = (f"{dest} (your pick): Qloo doesn't score {dest} for the complete group and all travelers, "
+                "so there is no city-level "
                 "fit, but every stop below comes from Qloo venue affinities in the city."
                 + (f" Qloo's best match for this group would be {top['name']} ({top['group_fit']})." if top else ""))
     elif ch:
@@ -732,14 +774,14 @@ def narrate(r: dict) -> str:
             base += f" Everyone gets their own picks: {', '.join(own)}."
         else:
             n = len(r["itinerary"])
+            scored = " (every stop is still scored for them)" if fc.get("scored_for_everyone") else ""
             base += (f" {n} stops for {len(fs)} travelers, so own picks go to {', '.join(own)}; {_names(zero)} "
-                     f"{'has' if len(zero) == 1 else 'have'} no own pick yet (every stop is still scored for them)"
+                     f"{'has' if len(zero) == 1 else 'have'} no own pick yet{scored}"
                      " — add more days so everyone gets one.")
     missing = r.get("unmatched_travelers") or []
     if missing:
         base += (f" {_names(missing)}'s favourites weren't found in Qloo, so the plan follows "
                  + ("the rest of the group." if len(fs) > 1 else f"{next(iter(fs))}'s taste."))
-    fc = r.get("fairness_check") or {}
     enjoy = fc.get("trip_enjoyment") or {}
     if len(enjoy) > 1 and fc.get("scored_for_everyone"):
         lo, hi = round(100 * min(enjoy.values())), round(100 * max(enjoy.values()))
