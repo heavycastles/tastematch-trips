@@ -6,7 +6,7 @@ import pytest
 
 from app.agent import affinity_band, plan
 
-HTML = (Path(__file__).resolve().parent.parent / "app" / "static" / "index.html").read_text()
+HTML = (Path(__file__).resolve().parent.parent / "app" / "static" / "index.html").read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize(("score", "word"), [(0.97, "Very high"), (0.85, "Very high"), (0.84, "High"), (0.70, "High"),
