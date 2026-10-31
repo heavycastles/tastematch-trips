@@ -32,9 +32,11 @@ def test_pool_keeps_top_visitable_and_falls_back_when_only_hotels():
     places = [_p(f"H{i}", "hotel") for i in range(5)] + [_p(f"R{i}", "restaurant") for i in range(10)]
     pool = agent._stops(places)
     assert [p["name"] for p in pool] == [f"R{i}" for i in range(agent.POOL_SIZE)]
-    assert pool.skipped == 5
+    assert pool.skipped == 5 and pool.fallback is False
     only_hotels = [_p(f"H{i}", "hotel") for i in range(3)]
-    assert [p["name"] for p in agent._stops(only_hotels)] == ["H0", "H1", "H2"]
+    fallback = agent._stops(only_hotels)
+    assert [p["name"] for p in fallback] == ["H0", "H1", "H2"]
+    assert fallback.fallback is True
 
 
 def test_kind_label_prefers_specific_category():
@@ -133,7 +135,8 @@ def test_stats_report_cached_qloo_calls(monkeypatch):
     finally:
         qloo._cached_get.cache_clear()
     assert first["stats"]["cached"] == 0
-    assert again["stats"]["cached"] == again["stats"]["qloo_calls"] > 0
+    assert again["stats"]["cached"] == first["stats"]["qloo_calls"] > 0
+    assert again["stats"]["qloo_calls"] == 0
 
 
 def test_shops_are_daytime_and_stadiums_evening():

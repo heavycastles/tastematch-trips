@@ -97,7 +97,8 @@ def test_cached_count_is_per_request(monkeypatch):
         again = plan(body, days=1)["stats"]
     finally:
         qloo._cached_get.cache_clear()
-    assert first["cached"] == 0 and again["cached"] == again["qloo_calls"]
+    assert first["cached"] == 0 and first["qloo_calls"] > 0
+    assert again["cached"] == first["qloo_calls"] and again["qloo_calls"] == 0
 
 
 def test_ui_initials_and_enter_key():

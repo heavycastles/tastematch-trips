@@ -125,5 +125,5 @@ def test_parallel_calls_share_the_plan_time_budget(monkeypatch):
 
 def test_trace_row_tells_the_user_about_merged_cities():
     from pathlib import Path
-    html = (Path(__file__).parent.parent / "app" / "static" / "index.html").read_text()
+    html = (Path(__file__).parent.parent / "app" / "static" / "index.html").read_text(encoding="utf-8")
     assert "s.merged" in html and "duplicate city" in html

@@ -1,9 +1,14 @@
 # TasteMatch Trips — demo video v5
 
+> Audit note: this is a transcript of an earlier recording. Its narration describes 16 “calls” and says
+> every Qloo call appears in the trace, but the trace records logical steps and can omit retries or alternate
+> searches; the physical request count for this recording has not been verified. The every-stop scoring claim
+> describes this sample, not a guarantee for responses with missing scores. Review or revise the video before publication.
+
 `docs/demo-v5.mp4` · 2:24 · 1920×1080 · 30 fps · burned-in subtitles (`docs/demo-v5.srt`) in a band below the app window (they never cover the UI) · cover `docs/demo-v5-cover.png`
 
 Recorded on 24 Oct 2026 from the production deployment https://tastematch-trips.vercel.app (live Qloo hackathon API, fresh deployment so nothing was served from cache for the main run; fictional sample groups Aziz / Malika / Rustam and Sam / Jo / Kai).
-v5 re-records the screen on the current version (commits bf3b2ea + f46114e): new AA-contrast colours, the agent trace shows the matched Qloo entity name, the time-of-day decision now reads “Moved 5 stop(s) to a better time of day”, and day 2 runs beach → Cocos Beach Club (afternoon) → La Pescadora (evening). All numbers in the narration were re-checked against this run and are unchanged (group fit 80.0, 77/90/76 %, 16 calls, 93/95/94 %, Paris gap 6 pts). Narration, music and structure are the same as v4.
+v5 re-records the screen on the then-current version (commits bf3b2ea + f46114e): new AA-contrast colours, the agent trace shows the matched Qloo entity name, the time-of-day decision now reads “Moved 5 stop(s) to a better time of day”, and day 2 runs beach → Cocos Beach Club (afternoon) → La Pescadora (evening). The old UI displayed 16 “calls”, which were logged steps; the physical HTTP request count is unverified. Narration, music and structure are the same as v4.
 
 | Time | Scene | Narration |
 |---|---|---|

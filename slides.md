@@ -21,6 +21,8 @@ footer: TasteMatch Trips · Qloo Agentic Hackathon · MIT · tastematch-trips.ve
 **Live demo:** https://tastematch-trips.vercel.app (no login)
 **Code:** https://github.com/heavycastles/tastematch-trips (MIT)
 
+**Status:** check `/version` to confirm the live demo's deployed commit.
+
 Agents, but with taste — and fairness.
 
 ---
@@ -38,31 +40,31 @@ An LLM can *say* "something for everyone" — it can't **measure** it.
 
 ---
 
-# Solution: fairness as a number Qloo can measure
+# Solution: a fairness heuristic using Qloo scores
 
 1. **Resolve** each favourite — `GET /search`
 2. **Score cities** for the group, then for **each traveler** — `/v2/insights` + `filter.entities`
 3. **Rank by fairness** — `40% mean + 40% least-happy + 20% group`
 4. **Find stops** per traveler — place insights + `filter.location.query`
-   (hotels, errands, offices and >100 km outliers filtered out)
-5. **Score every stop for every traveler** — a traveler × stop affinity matrix
-6. **Plan → self-check → re-plan** — whole-trip enjoyment gap must be ≤ 5 pts
+   (prefer visitable nearby places; original results may be used as a fallback)
+5. **Request stop scores for every traveler** — a traveler × stop affinity matrix
+6. **Plan → self-check → re-plan** — try to reduce gaps above 5 pts when scores are complete
 
 ---
 
 # What the agent decides (and shows)
 
 - **Compensate:** the traveler the city fits least picks first
-- **Group-aware picks:** among your top-tier stops, take the one that lifts whoever is furthest behind
-- **Self-check:** if the enjoyment gap is > 5 pts, re-plan once and keep it only if it's fairer
+- **Group-aware picks:** with complete stop scores, choose among top-tier stops to lift whoever is furthest behind
+- **Self-check:** if the enjoyment gap is > 5 pts and scores are complete, re-plan once; keep it only if it's fairer
 - **Time of day:** cafés, sights and beaches by day; dinner, bars and clubs in the evening — never a club at 9 am
-- **Honest:** unknown favourites are listed, a city Qloo can't score says "not scored by Qloo", never a fake 0
+- **Limits:** missing scores are disclosed; city ranking assumes scores are comparable across travelers
 
 ---
 
 # Live result — hosted demo, re-checked 27 Oct 2026
 
-Sample group Aziz / Malika / Rustam · all 6 favourites matched · 16 Qloo calls in ~4 s
+Sample group Aziz / Malika / Rustam · all 6 favourites matched · 16 logged steps in ~4 s
 
 | Rank | Destination | group_fit | least-matched |
 | ---: | --- | ---: | --- |
@@ -86,9 +88,9 @@ Group-fit ring, per-traveler fit, matched favourites with Qloo images.
 
 ![bg right:58% fit](docs/screenshots/06-itinerary-day1.png)
 
-# Every stop, scored for everyone
+# Recorded run: stop scores
 
-Each card: who it's for, their Qloo affinity, the favourites behind it, and how much every other traveler will enjoy it.
+Each card shows its owner, Qloo affinity, the favourites associated with that owner's pool, and available scores for other travelers.
 
 ---
 
@@ -96,7 +98,7 @@ Each card: who it's for, their Qloo affinity, the favourites behind it, and how 
 
 # Fairness self-check
 
-Whole-trip enjoyment per traveler and every decision the agent made — in plain language.
+When candidate scores are complete, the agent checks whole-trip enjoyment and explains its decisions.
 
 ---
 
@@ -122,11 +124,11 @@ UI: best match · ranking · itinerary · self-check · map · agent trace
 
 # Responsible use of Qloo
 
-- **Nicknames only** — no personal data sent to Qloo
+- Use **nicknames and public favourites**; typed favourites and destination are sent to Qloo
 - Unmatched favourites are **surfaced**, never guessed
-- Responses cached **in memory only**, never stored
+- The app's Qloo response cache is **in memory**
 - Results labelled as **aggregate affinities**, not predictions about individuals
-- The agent trace shows every Qloo call, with count and time
+- The trace groups logical steps; retries and alternate searches are not all listed separately
 
 ---
 
@@ -137,6 +139,6 @@ UI: best match · ranking · itinerary · self-check · map · agent trace
 3. Group polls in Telegram (n8n workflow in the repo) to confirm the city
 4. Local guides for Samarkand and Tashkent
 
-**Built with:** Python · FastAPI · Qloo Taste AI (`/search`, `/v2/insights`) · Vercel · pytest (132 tests) · n8n
+**Built with:** Python · FastAPI · Qloo Taste AI (`/search`, `/v2/insights`) · Vercel · pytest · n8n
 
 **Try it:** https://tastematch-trips.vercel.app

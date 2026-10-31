@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 c = TestClient(app)
-HTML = (Path(__file__).parent.parent / "app" / "static" / "index.html").read_text()
+HTML = (Path(__file__).parent.parent / "app" / "static" / "index.html").read_text(encoding="utf-8")
 
 
 def _qimg():

@@ -3,7 +3,7 @@ import httpx
 from fastapi.testclient import TestClient
 
 from app import qloo
-from app.agent import _norm, build_itinerary, plan
+from app.agent import _norm, build_itinerary, narrate, plan
 from app.main import SAMPLE, app
 
 c = TestClient(app)
@@ -18,7 +18,8 @@ def test_every_stop_is_scored_for_every_traveler_mock():
     labels = {"Aziz", "Malika", "Rustam"}
     tools = [s["tool"] for s in r["trace"]]
     assert tools.count("cross_score_places") == 3
-    assert r["stats"]["qloo_calls"] == len(r["trace"])  # decisions are not counted as Qloo calls
+    assert r["stats"]["tool_steps"] == len(r["trace"])
+    assert r["stats"]["qloo_calls"] == 0  # mock planning makes no Qloo HTTP requests
     for x in r["itinerary"]:
         assert set(x["group_scores"]) == labels and all(0 <= v <= 1 for v in x["group_scores"].values())
         assert x["group_scores"][x["for"]] == round(x["affinity"], 3)
@@ -93,6 +94,64 @@ def test_cross_score_failure_degrades_gracefully(monkeypatch):
     r = plan(t, days=1)
     assert len(r["itinerary"]) == 2 and r["fairness_check"]["scored_for_everyone"] is False
     assert all(s["results"] == 0 for s in r["trace"] if s["tool"] == "cross_score_places")
+    assert r["fairness_check"]["trip_enjoyment"] == {}
+    assert all(stop["group_scores"] == {stop["for"]: 0.8} for stop in r["itinerary"])
+
+
+def test_incomplete_cross_scores_are_not_reported_or_optimized_as_zero():
+    # B has no score for A's best stop. Treating that missing score as zero would
+    # wrongly select A's second-best stop and invent a 0% score for B.
+    pools = {"A": [_p("a1", 0.90), _p("a2", 0.89)], "B": [_p("b1", 0.90)]}
+    matrix = {"A": {"a1": 0.90, "a2": 0.89, "b1": 0.80}, "B": {"a2": 0.99, "b1": 0.90}}
+    itinerary, check, decisions = build_itinerary(["A", "B"], pools, matrix, {}, 1, {})
+
+    first_a = next(stop for stop in itinerary if stop["for"] == "A")
+    assert first_a["place"] == "a1"
+    assert first_a["group_scores"] == {"A": 0.90}
+    assert check["scored_for_everyone"] is False
+    assert check["trip_enjoyment"] == {} and check["spread"] is None
+    assert not any(d["step"] in {"group_aware", "self_check", "revise"} for d in decisions)
+    assert any(d["step"] == "incomplete_scores" for d in decisions)
+
+
+def test_incomplete_candidates_prevent_best_option_fairness_check():
+    pools = {"A": [_p("a1", 0.90), _p("a2", 0.85), _p("a3", 0.70)], "B": [_p("b1", 0.90)]}
+    matrix = {"A": {"a1": 0.90, "a2": 0.85, "a3": 0.70, "b1": 0.90},
+              "B": {"a1": 0.10, "a2": 0.10, "b1": 0.90}}
+    itinerary, check, decisions = build_itinerary(["A", "B"], pools, matrix, {}, 1, {})
+
+    assert {stop["place"] for stop in itinerary} == {"a1", "a2", "b1"}
+    assert check["scored_for_everyone"] is True and check["available"] is False
+    assert check["trip_enjoyment"] == {} and check["spread"] is None
+    assert any(d["step"] == "incomplete_scores" for d in decisions)
+    assert not any(d["step"] in {"self_check", "revise"} for d in decisions)
+
+
+def test_narrative_does_not_claim_missing_scores_are_available():
+    pools = {"A": [_p("a1", 0.9)], "B": []}
+    itinerary, check, _ = build_itinerary(["A", "B"], pools, {"A": {"a1": 0.9}, "B": {}}, {}, 1, {})
+    result = {"destination": "Rome", "ranking": [{"name": "Rome", "group_fit": 70, "least_happy": "B"}],
+              "fair_share": check["own_picks"], "itinerary": itinerary, "fairness_check": check}
+    text = narrate(result)
+    assert "B has no own pick yet" in text
+    assert "every stop is still scored for them" not in text
+
+
+def test_missing_stop_ids_cannot_be_reported_as_scored_for_everyone():
+    pools = {"A": [{"id": None, "name": "a", "affinity": 0.9}],
+             "B": [{"id": None, "name": "b", "affinity": 0.9}]}
+    itinerary, check, _ = build_itinerary(["A", "B"], pools, {"A": {}, "B": {}}, {}, 1, {})
+    assert len(itinerary) == 2
+    assert check["scored_for_everyone"] is False
+    assert check["trip_enjoyment"] == {}
+
+
+def test_real_zero_affinity_is_not_replaced_by_the_owners_pool_score():
+    pools = {"A": [_p("a1", 0.90)], "B": [_p("b1", 0.90)]}
+    matrix = {"A": {"a1": 0.0, "b1": 0.90}, "B": {"a1": 0.20, "b1": 0.90}}
+    itinerary, _, _ = build_itinerary(["A", "B"], pools, matrix, {}, 1, {})
+    first_a = next(stop for stop in itinerary if stop["for"] == "A")
+    assert first_a["affinity"] == 0.0 and first_a["group_scores"]["A"] == 0.0
 
 
 def test_ui_has_share_link_copy_and_fairness_card():
